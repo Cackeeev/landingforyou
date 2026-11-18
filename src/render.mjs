@@ -35,7 +35,7 @@ export function renderSite(content) {
   const slots = {
     INTRO: escape(settings.intro), SUBTITLE: escape(settings.subtitle),
     HEADLINE: escape(settings.headline), HEADLINE2: escape(settings.headline2), HEADLINE3: escape(settings.headline3),
-    TELEGRAM: escape(telegram), FEATURE_IMAGE: escape(projects[0]?.image || '/assets/baltic-logo.png'),
+    TELEGRAM: escape(telegram),
     WORK: `<section class="work pad" id="work" aria-labelledby="work-title">
       <div class="work-heading"><h2 class="section-heading" id="work-title">Работы</h2></div>${work}</section>`,
     SERVICES: `<section class="services pad" id="services" aria-labelledby="services-title">
@@ -62,9 +62,5 @@ export function renderSite(content) {
         <p class="form-status" role="status"></p>
       </form></dialog>`
   };
-  let html = template.replace(/{{([A-Z0-9_]+)}}/g, (_, name) => slots[name] || '');
-  // No featured case may expose a hidden project or a misleading accessible name.
-  html = html.replace(/aria-label="Кейс «Биосфера Балтики»"/, `aria-label="${escape(projects[0]?.title || 'Работы')}"`);
-  if (!projects.length) html = html.replace(/<a class="poster-photo".*?<\/a>/s, '');
-  return html;
+  return template.replace(/{{([A-Z0-9_]+)}}/g, (_, name) => slots[name] || '');
 }

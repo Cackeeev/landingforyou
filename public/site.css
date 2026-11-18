@@ -239,23 +239,6 @@
     .poster-cta:hover { color: var(--blue); }
     .poster-cta span { display: grid; width: 22px; height: 22px; place-items: center; background: var(--blue); color: white; font: 16px/1 var(--sans); }
 
-    .poster-photo {
-      position: absolute;
-      z-index: 2;
-      top: 6%;
-      right: 10.5%;
-      display: grid;
-      place-items: center;
-      width: clamp(102px, 12.6vw, 222px);
-      aspect-ratio: 1;
-      padding: clamp(12px, 1.2vw, 23px);
-      border: clamp(7px, .85vw, 13px) solid #2767f6;
-      background: #d6eff0;
-      transform: rotate(calc(-4deg + var(--poster-motion, 0) * 11deg)) translateY(calc(var(--poster-motion, 0) * 18px));
-      transition: background .18s;
-    }
-    .poster-photo:hover { background: #edfffd; }
-    .poster-photo img { width: 100%; height: auto; }
 
     .poster-footer {
       display: flex;
@@ -369,7 +352,6 @@
     #case-dialog img { padding: 8% 7%; height: clamp(130px, 25vw, 205px); object-fit: contain; background: #d8eddf; }
 
     @media (max-width: 1020px) and (min-width: 761px) {
-      .poster-photo { right: 9%; top: 7%; }
       .poster-body { padding-top: 100px; }
     }
 
@@ -384,7 +366,6 @@
       .poster-title span + span { font-size: .86em; }
       .poster-title em { display: block; font-size: 1.12em; }
       .poster-intro { margin-bottom: .64em; font-size: clamp(19px, 5.6cqw, 30px); }
-      .poster-photo { top: 13px; right: 10%; width: clamp(59px, 18cqw, 109px); padding: 6px; border-width: 5px; }
       .poster-footer { min-height: 50px; gap: 7px; font-size: clamp(11px, 3.12cqw, 20px); }
       .sticker-pink { top: 15px; left: 14.5%; width: clamp(75px, 24vw, 142px); }
       .pink-lettering { font-size: clamp(27px, 9vw, 58px); }
@@ -401,8 +382,6 @@
     }
   
 /* Adjustments approved on the portfolio preview. */
-.poster-photo { border-color: #2767f6; background: #fff; }
-.poster-photo:hover { background: #fff; }
 .poster .navigation { gap: 0; padding-inline: 7px; }
 .poster .navigation a { padding-inline: clamp(13px, 1.5vw, 26px); }
 dialog { border-radius: 28px; padding: 30px; border-color: #ddd; }

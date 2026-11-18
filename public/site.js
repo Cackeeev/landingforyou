@@ -1,30 +1,30 @@
 
-    const poster = document.querySelector('.poster');
-    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-    let frame = 0;
+const poster = document.querySelector('.poster');
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+let frame = 0;
 
-    function updateScroll() {
-      frame = 0;
-      const progress = reducedMotion.matches ? 0 : Math.max(0, Math.min(1, scrollY / poster.offsetHeight));
-      poster.style.setProperty('--poster-motion', progress.toFixed(4));
-    }
+function updateScroll() {
+  frame = 0;
+  const progress = reducedMotion.matches ? 0 : Math.max(0, Math.min(1, scrollY / poster.offsetHeight));
+  poster.style.setProperty('--poster-motion', progress.toFixed(4));
+}
 
-    function scheduleScroll() {
-      if (!frame) frame = requestAnimationFrame(updateScroll);
-    }
+function scheduleScroll() {
+  if (!frame) frame = requestAnimationFrame(updateScroll);
+}
 
-    addEventListener('scroll', scheduleScroll, { passive: true });
-    addEventListener('resize', scheduleScroll);
-    reducedMotion.addEventListener('change', scheduleScroll);
-    updateScroll();
+addEventListener('scroll', scheduleScroll, { passive: true });
+addEventListener('resize', scheduleScroll);
+reducedMotion.addEventListener('change', scheduleScroll);
+updateScroll();
 
-    poster.addEventListener('pointermove', event => {
-      if (reducedMotion.matches || event.pointerType === 'touch') return;
-      const rect = poster.getBoundingClientRect();
-      const position = (event.clientX - rect.left) / rect.width;
-      poster.style.setProperty('--headline-shift', position.toFixed(3));
-    });
-    poster.addEventListener('pointerleave', () => poster.style.removeProperty('--headline-shift'));
+poster.addEventListener('pointermove', event => {
+  if (reducedMotion.matches || event.pointerType === 'touch') return;
+  const rect = poster.getBoundingClientRect();
+  const position = (event.clientX - rect.left) / rect.width;
+  poster.style.setProperty('--headline-shift', position.toFixed(3));
+});
+poster.addEventListener('pointerleave', () => poster.style.removeProperty('--headline-shift'));
 
 document.querySelectorAll('.poster-footer a').forEach(link => {
   link.addEventListener('click', () => {
@@ -58,3 +58,65 @@ if (requestForm) requestForm.addEventListener('submit', async event => {
     button.disabled = false;
   }
 });
+
+// Center the opening headline once, yielding immediately to visitor input.
+function prepareOpeningScroll() {
+  if (location.hash || scrollY > 1 || reducedMotion.matches) return;
+  const navigation = performance.getEntriesByType('navigation')[0];
+  if (navigation?.type === 'back_forward') return;
+
+  const controller = new AbortController();
+  let animation = 0;
+  let cancelled = false;
+  function cancelOpeningScroll() {
+    cancelled = true;
+    cancelAnimationFrame(animation);
+    controller.abort();
+  }
+  for (const type of ['wheel', 'touchstart', 'pointerdown', 'keydown']) {
+    addEventListener(type, cancelOpeningScroll, {
+      capture: true,
+      passive: true,
+      signal: controller.signal
+    });
+  }
+  document.addEventListener('visibilitychange', cancelOpeningScroll, { signal: controller.signal });
+  reducedMotion.addEventListener('change', cancelOpeningScroll, { signal: controller.signal });
+
+  addEventListener('pageshow', event => {
+    if (event.persisted) {
+      cancelOpeningScroll();
+      return;
+    }
+    document.fonts.ready.then(() => {
+      animation = requestAnimationFrame(() => {
+        animation = requestAnimationFrame(() => {
+          if (cancelled || scrollY > 1 || location.hash || document.hidden) {
+            cancelOpeningScroll();
+            return;
+          }
+          const heading = document.getElementById('hero-title').getBoundingClientRect();
+          const target = Math.min(
+            document.documentElement.scrollHeight - innerHeight,
+            Math.max(0, heading.top + heading.height / 2 - innerHeight / 2)
+          );
+          if (target < 2) {
+            controller.abort();
+            return;
+          }
+          const start = performance.now();
+          function advance(now) {
+            if (cancelled) return;
+            const progress = Math.min(1, (now - start) / 420);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            scrollTo({ top: target * eased, behavior: 'instant' });
+            if (progress < 1) animation = requestAnimationFrame(advance);
+            else controller.abort();
+          }
+          animation = requestAnimationFrame(advance);
+        });
+      });
+    });
+  }, { once: true, signal: controller.signal });
+}
+prepareOpeningScroll();
