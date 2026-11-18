@@ -2,8 +2,9 @@ import { mkdirSync, readFileSync, writeFileSync, cpSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path';
 import { renderSite, escape } from '../src/render.mjs';
 import { root, db } from '../src/store.mjs';
+import { normalizeContent, themeCss } from '../src/content.mjs';
 
-const content = JSON.parse(readFileSync(resolve(root, 'src/seed.json'), 'utf8'));
+const content = normalizeContent(JSON.parse(readFileSync(resolve(root, 'src/seed.json'), 'utf8')));
 const base = process.env.PAGES_BASE_PATH || '/landingforyou/';
 if (!/^\/[a-zA-Z0-9_/-]*\/$/.test(base) && base !== '/') throw new Error('PAGES_BASE_PATH must start and end with /.');
 let adminUrl = '';
@@ -25,6 +26,7 @@ let html = renderSite(content);
 html = html.replace(/<p class="contact-divider">.*?<\/form>/s, '');
 html = html.replace(/(href|src)="\/(?!\/)/g, (_, attribute) => attribute + '="' + base);
 writeFileSync(resolve(output, 'index.html'), html);
+writeFileSync(resolve(output, 'theme.css'), themeCss(content.settings));
 mkdirSync(resolve(output, 'admin'), { recursive: true });
 const adminEntry = readFileSync(resolve(root, 'templates/admin-entry.html'), 'utf8')
   .replaceAll('{{BASE}}', base)

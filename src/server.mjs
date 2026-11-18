@@ -1,11 +1,12 @@
 import http from 'node:http';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomBytes, randomUUID, createHash, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { db, root, readContent, saveContent } from './store.mjs';
 import { renderSite } from './render.mjs';
 import { validateContent } from './validate.mjs';
+import { imagePaths, themeCss } from './content.mjs';
 
 const deriveKey = promisify(scrypt);
 const host = process.env.HOST || '127.0.0.1';
@@ -118,8 +119,8 @@ export const server = http.createServer(async (req, res) => {
         const body = await jsonBody(req);
         let content;
         try { content = validateContent(body); } catch (error) { fail(400, error.message); }
-        for (const project of content.projects) {
-          if (project.image.startsWith('/media/') && !db.prepare('SELECT id FROM media WHERE id=?').get(project.image.slice(7))) fail(400, 'Изображение не найдено.');
+        for (const path of imagePaths(content)) {
+          if (path.startsWith('/media/') && !db.prepare('SELECT id FROM media WHERE id=?').get(path.slice(7))) fail(400, 'Изображение не найдено.');
         }
         if (!saveContent(content, body.revision)) fail(409, 'Контент изменился в другой вкладке. Обновите страницу перед сохранением.');
         send(200, { ...readContent(), csrf: auth.csrf });
@@ -132,11 +133,19 @@ export const server = http.createServer(async (req, res) => {
         // A preview uses the same renderer and is never written to public content.
         content.projects = content.projects.map(item => ({ ...item, status: 'published' }));
         content.services = content.services.map(item => ({ ...item, status: 'published' }));
-        send(200, { html: renderSite(content) });
+        content.sections = content.sections.map(item => ({ ...item, status: 'published' }));
+        content.navigation = content.navigation.map(item => ({ ...item, status: 'published' }));
+        // Preview the unsaved palette without writing it to the live theme.
+        const palette = '/theme.css?accent=' + encodeURIComponent(content.settings.accent) + '&amp;paper=' + encodeURIComponent(content.settings.paper);
+        send(200, { html: renderSite(content).replace('href="/theme.css"', `href="${palette}"`) });
         return;
       }
       if (path === '/api/admin/media' && req.method === 'GET') {
-        send(200, db.prepare('SELECT id, name, mime FROM media ORDER BY rowid DESC').all());
+        const names = { 'wordmark.webp': 'Логотип Landingforyou', 'baltic-logo.png': 'Биосфера Балтики' };
+        const assets = readdirSync(resolve(root, 'public/assets'))
+          .filter(name => /^[a-zA-Z0-9._-]+\.(png|jpe?g|webp)$/.test(name) && !/^(favicon|apple-touch-icon)/.test(name))
+          .map(name => ({ id: 'asset-' + name, name: names[name] || name, url: '/assets/' + name }));
+        send(200, [...assets, ...db.prepare('SELECT id, name, mime FROM media ORDER BY rowid DESC').all()]);
         return;
       }
       if (path === '/api/admin/media' && req.method === 'POST') {
@@ -153,7 +162,7 @@ export const server = http.createServer(async (req, res) => {
       }
       if (path.startsWith('/api/admin/media/') && req.method === 'DELETE') {
         const id = path.split('/').pop();
-        if (readContent().projects.some(project => project.image === '/media/' + id)) fail(409, 'Изображение используется в проекте.');
+        if (imagePaths(readContent()).includes('/media/' + id)) fail(409, 'Изображение используется на сайте.');
         db.prepare('DELETE FROM media WHERE id=?').run(id);
         send(200, { ok: true });
         return;
@@ -180,6 +189,11 @@ export const server = http.createServer(async (req, res) => {
       send(200, { ok: true });
       return;
     }
+    if (path === '/theme.css') {
+      const settings = readContent().settings;
+      send(200, themeCss({ ...settings, accent: url.searchParams.get('accent') || settings.accent, paper: url.searchParams.get('paper') || settings.paper }), 'text/css');
+      return;
+    }
     if (path === '/' || path === '/index.html') {
       send(200, renderSite(readContent()), 'text/html');
       return;
@@ -197,6 +211,13 @@ export const server = http.createServer(async (req, res) => {
     const file = publicFiles.get(path);
     if (file) {
       send(200, readFileSync(resolve(root, file[0])), file[1]);
+      return;
+    }
+    if (/^\/assets\/[a-zA-Z0-9._-]+\.(png|jpe?g|webp)$/.test(path)) {
+      const mime = path.endsWith('.webp') ? 'image/webp' : /\.jpe?g$/.test(path) ? 'image/jpeg' : 'image/png';
+      let bytes;
+      try { bytes = readFileSync(resolve(root, 'public', path.slice(1))); } catch { fail(404, 'Изображение не найдено.'); }
+      send(200, bytes, mime);
       return;
     }
     fail(404, 'Страница не найдена.');

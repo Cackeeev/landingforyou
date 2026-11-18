@@ -8,18 +8,22 @@
   <header class="admin-header"><a class="brand" href="/">Landingforyou<span>↗</span></a><div class="header-actions"><a class="button" href="/" target="_blank" rel="noopener">Открыть сайт ↗</a><button id="logout">Выйти</button></div></header>
   <div class="admin-layout">
     <aside class="sidebar"><p class="eyebrow">CONTENT STUDIO</p><nav aria-label="Контент сайта">
-      <button data-tab="projects" aria-current="page">Проекты</button>
+      <button data-tab="sections" aria-current="page">Блоки страницы</button>
+      <button data-tab="projects">Проекты</button>
       <button data-tab="services">Услуги</button>
+      <button data-tab="navigation">Меню и ссылки</button>
       <button data-tab="settings">Тексты и контакты</button>
+      <button data-tab="appearance">Оформление</button>
       <button data-tab="media">Медиатека</button>
       <button data-tab="requests">Заявки</button>
     </nav></aside>
     <main class="workspace" id="workspace">
-      <div class="page-heading"><h1 id="section-title">Проекты</h1><div class="header-actions"><button id="preview">Предпросмотр</button><button class="primary" id="save">Сохранить изменения</button></div></div>
+      <div class="page-heading"><h1 id="section-title">Блоки страницы</h1><div class="header-actions"><button id="preview">Предпросмотр</button><button class="primary" id="save">Сохранить изменения</button></div></div>
       <p class="notice" id="save-status" role="status">Загружаем контент…</p>
       <div id="editor-area"></div>
     </main>
   </div>
   <dialog class="preview-dialog" id="preview-dialog"><header><strong>Предпросмотр</strong><form method="dialog"><button aria-label="Закрыть предпросмотр">Закрыть ×</button></form></header><iframe title="Предпросмотр сайта" sandbox="allow-scripts allow-same-origin"></iframe></dialog>
+  <dialog class="media-picker" id="media-picker"><header><h2>Выберите изображение</h2><form method="dialog"><button aria-label="Закрыть медиатеку">Закрыть ×</button></form></header><div class="media-grid" id="media-picker-items"></div></dialog>
 </body>
 </html>
