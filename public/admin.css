@@ -103,3 +103,12 @@ textarea { resize: vertical; }
   .page-heading .header-actions { width: 100%; }
   .page-heading .header-actions button { flex: 1; font-size: 13px; }
 }
+
+.pages-notice { padding: 18px 32px; background: #e8ebff; border-bottom: 1px solid var(--line); display: grid; gap: 10px; }
+.pages-notice p { max-width: 85ch; }
+.github-dialog { width: min(540px, calc(100vw - 24px)); padding: 24px; border: 1px solid var(--line); border-radius: 20px; }
+.github-dialog::backdrop { background: #111a; }
+.github-dialog > form:first-child { text-align: right; margin-bottom: 16px; }
+.github-dialog p { margin-top: 12px; }
+.github-dialog a { color: var(--blue); text-decoration: underline; }
+@media (max-width: 650px) { .pages-notice { padding: 16px 12px; } }

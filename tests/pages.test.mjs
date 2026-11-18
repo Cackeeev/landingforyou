@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { normalizeContent } from '../src/content.mjs';
+import { pbkdf2Sync, createDecipheriv } from 'node:crypto';
 
 test('Pages retains the footer admin entry and redirects only to a configured HTTP(S) login', () => {
   const directory = mkdtempSync(resolve(tmpdir(), 'landingforyou-pages-'));
@@ -15,7 +16,7 @@ test('Pages retains the footer admin entry and redirects only to a configured HT
     }
     const build = (base, adminUrl = '') => spawnSync(process.execPath, ['scripts/build-pages.mjs'], {
       cwd: directory,
-      env: { ...process.env, NODE_ENV: 'test', DATA_DIR: resolve(directory, 'data'), PAGES_BASE_PATH: base, ADMIN_URL: adminUrl },
+      env: { ...process.env, NODE_ENV: 'test', DATA_DIR: resolve(directory, 'data'), PAGES_BASE_PATH: base, ADMIN_URL: adminUrl, PAGES_ADMIN_PASSWORD: 'test-pages-password' },
       encoding: 'utf8'
     });
     for (const base of ['/landingforyou/', '/']) {
@@ -24,12 +25,23 @@ test('Pages retains the footer admin entry and redirects only to a configured HT
       const home = readFileSync(resolve(directory, 'dist/index.html'), 'utf8');
       const admin = readFileSync(resolve(directory, 'dist/admin/index.html'), 'utf8');
       assert.ok(home.includes(`href="${base}admin/">Войти в админку`));
-      assert.match(admin, /Админка ещё не подключена/);
+      assert.match(admin, /id="login-form"/);
       assert.ok(admin.includes(`href="${base}admin.css"`));
       assert.ok(admin.includes(`href="${base}">Вернуться на сайт`));
-      assert.doesNotMatch(admin, /<form|http-equiv="refresh"|{{/);
+      assert.doesNotMatch(admin, /http-equiv="refresh"|{{|test-pages-password/);
       assert.ok(existsSync(resolve(directory, 'dist/admin.css')));
-      assert.equal(existsSync(resolve(directory, 'dist/admin.js')), false);
+      assert.ok(existsSync(resolve(directory, 'dist/admin.js')));
+      assert.ok(existsSync(resolve(directory, 'dist/admin/editor.html')));
+      assert.match(readFileSync(resolve(directory, 'dist/admin/editor.html'), 'utf8'), /Опубликовать в GitHub/);
+      const bootstrap = JSON.parse(readFileSync(resolve(directory, 'dist/admin/bootstrap.json'), 'utf8'));
+      const key = pbkdf2Sync('test-pages-password', Buffer.from(bootstrap.salt, 'base64'), bootstrap.iterations, 32, 'sha256');
+      const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(bootstrap.iv, 'base64'));
+      const encrypted = Buffer.from(bootstrap.data, 'base64');
+      decipher.setAuthTag(encrypted.subarray(-16));
+      const seed = JSON.parse(Buffer.concat([decipher.update(encrypted.subarray(0, -16)), decipher.final()]).toString());
+      assert.equal(seed.check, 'pages-editor-v1');
+      assert.equal(bootstrap.content.settings.brandName, 'Landingforyou');
+      assert.equal(JSON.stringify(bootstrap).includes('test-pages-password'), false);
     }
     const result = build('/landingforyou/', 'https://admin.example/admin/?from=footer&lang=ru');
     assert.equal(result.status, 0, result.stderr);

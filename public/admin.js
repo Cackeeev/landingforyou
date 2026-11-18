@@ -1,3 +1,5 @@
+const adminFetch = (...args) => window.pagesAdmin ? window.pagesAdmin.fetch(...args) : fetch(...args);
+const mediaSource = url => window.pagesAdmin ? window.pagesAdmin.imageUrl(url) : url;
 async function login(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -6,10 +8,10 @@ async function login(event) {
   button.disabled = true;
   status.textContent = 'Проверяем…';
   try {
-    const response = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+    const response = await adminFetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(form))) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);
-    location.assign('/admin');
+    location.assign(window.pagesAdmin?.editorUrl || '/admin');
   } catch (error) { status.textContent = error.message; status.className = 'error'; }
   finally { button.disabled = false; }
 }
@@ -42,9 +44,9 @@ async function initializeAdmin() {
   function message(text, error = false) { notice.textContent = text; notice.classList.toggle('error', error); }
   function changed() { dirty = true; editVersion++; message('Есть несохранённые изменения.'); }
   async function api(path, options = {}) {
-    const response = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': content?.csrf || '', ...options.headers } });
+    const response = await adminFetch(path, { ...options, headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': content?.csrf || '', ...options.headers } });
     const data = await response.json();
-    if (response.status === 401) { dirty = false; location.assign('/admin'); throw new Error('Войдите в админку.'); }
+    if (response.status === 401) { dirty = false; location.assign(window.pagesAdmin?.loginUrl || '/admin'); throw new Error('Войдите в админку.'); }
     if (!response.ok) throw new Error(data.error);
     return data;
   }
@@ -87,7 +89,7 @@ async function initializeAdmin() {
     try {
       const saved = await api('/api/admin/content', { method: 'PUT', body: JSON.stringify(content) });
       if (editVersion === savingVersion) {
-        content = saved; dirty = false; message('Изменения сохранены. Опубликованный контент обновлён на сайте.'); render();
+        content = saved; dirty = false; message(window.pagesAdmin ? 'Изменения сохранены в этом браузере. Для обновления сайта нажмите «Опубликовать в GitHub».' : 'Изменения сохранены. Опубликованный контент обновлён на сайте.'); render();
       } else {
         content.revision = saved.revision; content.csrf = saved.csrf;
         message('Сохранено. Есть новые несохранённые изменения.');
@@ -114,7 +116,7 @@ async function initializeAdmin() {
       items.replaceChildren();
       for (const item of media) {
         const node = button(item.name, () => { action(item.url || '/media/' + item.id); changed(); dialog.close(); });
-        node.prepend(element('img', { src: item.url || '/media/' + item.id, alt: '' })); items.append(node);
+        node.prepend(element('img', { src: mediaSource(item.url || '/media/' + item.id), alt: '' })); items.append(node);
       }
     } catch (error) { items.replaceChildren(element('p', {}, error.message)); }
   }
@@ -122,7 +124,7 @@ async function initializeAdmin() {
     const box = element('fieldset', { class: 'image-field' });
     box.append(element('legend', {}, labelText));
     const cover = element('img', { class: 'cover', alt: labelText });
-    function update(url) { record[key] = url; cover.hidden = !url; if (url) cover.src = url; }
+    function update(url) { record[key] = url; cover.hidden = !url; if (url) cover.src = mediaSource(url); }
     update(record[key]);
     const upload = element('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', 'aria-label': 'Загрузить ' + labelText.toLowerCase() });
     upload.addEventListener('change', async () => {
@@ -151,7 +153,7 @@ async function initializeAdmin() {
     box.append(upload, button('Добавить из медиатеки', () => pickImage(url => { record[key].push({ image: url, alt: '' }); render(); })));
     record[key].forEach((item, index) => {
       const card = element('div', { class: 'gallery-editor-item fields' });
-      card.append(element('img', { class: 'cover', src: item.image, alt: item.alt }));
+      card.append(element('img', { class: 'cover', src: mediaSource(item.image), alt: item.alt }));
       field(card, 'Подпись к изображению ' + (index + 1), item, 'alt');
       const actions = element('div', { class: 'header-actions' });
       const up = button('Выше', () => { [record[key][index - 1], record[key][index]] = [item, record[key][index - 1]]; changed(); render(); });
@@ -283,7 +285,7 @@ async function initializeAdmin() {
     if (!media.length) gallery.append(element('p', { class: 'hint' }, 'Пока нет загруженных изображений. Добавьте их здесь или в редакторе блока.'));
     for (const item of media) {
       const url = item.url || '/media/' + item.id;
-      const card = element('article', { class: 'media-card' }); card.append(element('img', { src: url, alt: item.name }), element('p', {}, item.name));
+      const card = element('article', { class: 'media-card' }); card.append(element('img', { src: mediaSource(url), alt: item.name }), element('p', {}, item.name));
       if (!item.url) card.append(button('Удалить', async () => {
         if (usedImage(url)) { message('Изображение используется в текущем контенте. Сначала уберите его из блоков или проектов.', true); return; }
         if (!confirm('Удалить изображение из медиатеки?')) return;
@@ -297,7 +299,7 @@ async function initializeAdmin() {
     const panel = element('section', { class: 'requests' }); area.append(panel);
     panel.append(button('Обновить заявки', render));
     const records = await api('/api/admin/requests'); if (tab !== 'requests') return;
-    if (!records.length) panel.append(element('p', {}, 'Заявок пока нет.'));
+    if (!records.length) panel.append(element('p', {}, window.pagesAdmin ? 'На GitHub Pages обращения поступают по вашим контактным ссылкам. Встроенный сбор заявок доступен в серверной версии.' : 'Заявок пока нет.'));
     for (const record of records) {
       const card = element('article', { class: 'panel request-card' });
       card.append(element('span', { class: 'hint' }, new Date(record.created).toLocaleString('ru-RU')), element('h2', {}, record.name), element('p', {}, record.contact), element('p', {}, record.task)); panel.append(card);
@@ -320,7 +322,7 @@ async function initializeAdmin() {
   document.getElementById('logout').addEventListener('click', async () => {
     if (uploads) { message('Дождитесь завершения загрузки изображений.', true); return; }
     if (dirty && !confirm('Выйти без сохранения изменений?')) return;
-    try { await api('/api/logout', { method: 'POST' }); dirty = false; location.assign('/admin'); }
+    try { await api('/api/logout', { method: 'POST' }); dirty = false; location.assign(window.pagesAdmin?.loginUrl || '/admin'); }
     catch (error) { message(error.message, true); }
   });
   document.getElementById('preview').addEventListener('click', async () => {
@@ -330,6 +332,10 @@ async function initializeAdmin() {
       const dialog = document.getElementById('preview-dialog'); dialog.querySelector('iframe').srcdoc = data.html; dialog.showModal();
     } catch (error) { message(error.message, true); }
   });
+  if (window.pagesAdmin) window.pagesAdmin.saveBeforeExport = async () => {
+    if (dirty) await save();
+    if (busy || dirty || uploads) throw new Error('Сначала завершите сохранение изменений.');
+  };
   try { content = await api('/api/admin/content'); message('Контент загружен.'); render(); }
   catch (error) { message(error.message, true); }
 }
