@@ -50,6 +50,8 @@ test('server authorization, publishing, requests and persistence', async () => {
     assert.equal((await query('/api/admin/content')).status, 401);
     assert.equal((await query('/api/admin/content', { method: 'PUT', body: '{}' })).status, 401);
     assert.match(await (await query('/admin')).text(), /id="login-form"/);
+    assert.match(await (await query('/admin/')).text(), /id="login-form"/);
+    assert.match(await (await query('/')).text(), /class="button footer-admin" href="\/admin\/">Войти в админку/);
     let response = await query('/api/login', { method: 'POST', body: JSON.stringify({username:'admin',password:'wrong'}) });
     assert.equal(response.status,401);
     response = await query('/api/login', { method:'POST', body:JSON.stringify({username:'admin',password:'test-password'}) });
