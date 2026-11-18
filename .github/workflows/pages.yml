@@ -22,6 +22,7 @@ jobs:
       - run: npm run build:pages
         env:
           PAGES_BASE_PATH: /landingforyou/
+          ADMIN_URL: ${{ vars.ADMIN_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

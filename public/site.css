@@ -113,7 +113,9 @@
     .contact { background: var(--ink); color: var(--paper); }
     .contact .section-heading { max-width: 10ch; }
     .contact p { margin: 20px 0; color: #ccc; }
-    .footer { padding-block: 19px; display: flex; justify-content: space-between; gap: 16px; background: var(--ink); color: var(--paper); border-top: 1px solid #ffffff55; font-size: 13px; }
+    .footer { padding-block: 19px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; background: var(--ink); color: var(--paper); border-top: 1px solid #ffffff55; font-size: 13px; }
+    .footer-admin { min-height: 44px; margin-left: auto; gap: 8px; border-color: #ffffff80; font-size: 13px; }
+    .footer-admin:hover { background: var(--paper); color: var(--blue); border-color: var(--paper); text-decoration: none; }
 
     dialog { width: min(555px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); border: 1px solid #fff; border-radius: 0; padding: clamp(18px, 4vw, 32px); background: var(--paper); color: var(--ink); }
     dialog::backdrop { background: #101010b3; backdrop-filter: blur(7px); }
@@ -401,6 +403,28 @@ dialog .close { width: 44px; height: 44px; top: 9px; right: 9px; }
 .project-preview + .project-preview { margin-top: 28px; }
 dialog .case-tech { margin-top: 15px; font-size: 14px; }
 .form-status { font-size: 14px; }
+.no-stickers .sticker { display: none; }
+.poster .wordmark { max-width: 100%; }
+.poster .wordmark.custom-logo { aspect-ratio: auto; mask: none; overflow: visible; font-family: var(--editorial); letter-spacing: -.04em; }
+.poster .wordmark.custom-logo img { position: static; width: 100%; max-width: 100%; height: auto; max-height: 70px; object-fit: contain; filter: none; }
+.poster .navigation { flex-wrap: wrap; justify-content: center; }
+.poster-title span { white-space: normal; overflow-wrap: anywhere; }
+.content-block { padding-block: clamp(40px, 7vw, 100px); border-top: 1px solid #10101033; }
+.content-block .section-heading { font-size: clamp(38px, 7vw, 100px); overflow-wrap: anywhere; }
+.section-description { margin-block: 20px; max-width: 70ch; font-size: clamp(16px, 1.6vw, 22px); }
+.block-copy { max-width: 70ch; font-size: clamp(16px, 1.6vw, 22px); }
+.block-copy p + p, .section-description p + p { margin-top: 1em; }
+.content-block .button { margin-top: 22px; }
+.block-image { width: 100%; max-height: 700px; object-fit: contain; margin-top: 24px; }
+.content-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 18px; margin-block: 24px; }
+.content-gallery img { width: 100%; max-height: 500px; object-fit: contain; }
+.content-gallery figcaption { margin-top: 8px; font-size: 14px; overflow-wrap: anywhere; }
+.content-block-cta { background: var(--blue); color: var(--paper); }
+.content-block-cta .button { background: var(--paper); color: var(--blue); }
+.service .button { margin-bottom: 20px; }
+.section-heading, .footer a { overflow-wrap: anywhere; }
+.project-name, .button, .poster .navigation a { overflow-wrap: anywhere; }
+.button { max-width: 100%; }
 #request-form button[disabled] { opacity: .6; cursor: wait; }
 @media (max-width: 760px) {
   .poster .navigation { width: 100%; justify-content: center; padding: 0; }

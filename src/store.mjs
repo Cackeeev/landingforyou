@@ -3,6 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, mkdirSync, chmodSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeContent } from './content.mjs';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const databasePath = resolve(process.env.DATA_DIR || resolve(root, '.local'), 'portfolio.sqlite');
@@ -21,7 +22,7 @@ db.prepare('INSERT OR IGNORE INTO content VALUES (1, 1, ?)').run(readFileSync(re
 
 export function readContent() {
   const row = db.prepare('SELECT * FROM content WHERE id=1').get();
-  return { revision: row.revision, ...JSON.parse(row.body) };
+  return { revision: row.revision, ...normalizeContent(JSON.parse(row.body)) };
 }
 
 export function saveContent(content, revision) {
