@@ -59,7 +59,7 @@ if (requestForm) requestForm.addEventListener('submit', async event => {
   }
 });
 
-// Center the opening headline once, yielding immediately to visitor input.
+// Center the opening copy once, yielding immediately to visitor input.
 function prepareOpeningScroll() {
   if (location.hash || scrollY > 1 || reducedMotion.matches) return;
   const navigation = performance.getEntriesByType('navigation')[0];
@@ -95,10 +95,10 @@ function prepareOpeningScroll() {
             cancelOpeningScroll();
             return;
           }
-          const heading = document.getElementById('hero-title').getBoundingClientRect();
+          const copy = document.querySelector('.poster-copy').getBoundingClientRect();
           const target = Math.min(
             document.documentElement.scrollHeight - innerHeight,
-            Math.max(0, heading.top + heading.height / 2 - innerHeight / 2)
+            Math.max(0, copy.top + copy.height / 2 - innerHeight / 2)
           );
           if (target < 2) {
             controller.abort();
