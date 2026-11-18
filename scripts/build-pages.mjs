@@ -1,0 +1,22 @@
+import { mkdirSync, readFileSync, writeFileSync, cpSync, rmSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { renderSite } from '../src/render.mjs';
+import { root, db } from '../src/store.mjs';
+
+const content = JSON.parse(readFileSync(resolve(root, 'src/seed.json'), 'utf8'));
+const base = process.env.PAGES_BASE_PATH || '/landingforyou/';
+if (!/^\/[a-zA-Z0-9_/-]*\/$/.test(base) && base !== '/') throw new Error('PAGES_BASE_PATH must start and end with /.');
+const output = resolve(root, 'dist');
+rmSync(output, { recursive: true, force: true });
+mkdirSync(output, { recursive: true });
+cpSync(resolve(root, 'public/assets'), resolve(output, 'assets'), { recursive: true });
+cpSync(resolve(root, 'public/site.css'), resolve(output, 'site.css'));
+cpSync(resolve(root, 'public/site.js'), resolve(output, 'site.js'));
+let html = renderSite(content);
+html = html.replace(/<a href="\/admin">.*?<\/a>/, '');
+html = html.replace(/<p class="contact-divider">.*?<\/form>/s, '');
+html = html.replace(/(href|src)="\/(?!\/)/g, (_, attribute) => attribute + '="' + base);
+writeFileSync(resolve(output, 'index.html'), html);
+writeFileSync(resolve(output, '.nojekyll'), '');
+db.close();
+console.log('GitHub Pages build ready in dist.');

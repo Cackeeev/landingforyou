@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg?v=2">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png?v=2">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png?v=2"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Content Studio · Landingforyou</title><link rel="stylesheet" href="/admin.css"><script defer src="/admin.js"></script></head>
+<body>
+  <header class="admin-header"><a class="brand" href="/">Landingforyou<span>↗</span></a><div class="header-actions"><a class="button" href="/" target="_blank" rel="noopener">Открыть сайт ↗</a><button id="logout">Выйти</button></div></header>
+  <div class="admin-layout">
+    <aside class="sidebar"><p class="eyebrow">CONTENT STUDIO</p><nav aria-label="Контент сайта">
+      <button data-tab="projects" aria-current="page">Проекты</button>
+      <button data-tab="services">Услуги</button>
+      <button data-tab="settings">Тексты и контакты</button>
+      <button data-tab="media">Медиатека</button>
+      <button data-tab="requests">Заявки</button>
+    </nav></aside>
+    <main class="workspace" id="workspace">
+      <div class="page-heading"><h1 id="section-title">Проекты</h1><div class="header-actions"><button id="preview">Предпросмотр</button><button class="primary" id="save">Сохранить изменения</button></div></div>
+      <p class="notice" id="save-status" role="status">Загружаем контент…</p>
+      <div id="editor-area"></div>
+    </main>
+  </div>
+  <dialog class="preview-dialog" id="preview-dialog"><header><strong>Предпросмотр</strong><form method="dialog"><button aria-label="Закрыть предпросмотр">Закрыть ×</button></form></header><iframe title="Предпросмотр сайта" sandbox="allow-scripts allow-same-origin"></iframe></dialog>
+</body>
+</html>

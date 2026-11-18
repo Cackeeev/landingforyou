@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg?v=2">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png?v=2">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png?v=2">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f4f4">
+  <title>Александр — веб-разработка и сопровождение</title>
+  <link rel="stylesheet" href="/site.css">
+</head>
+<body>
+  <div class="poster" id="top">
+    <div class="poster-sheet">
+      <header class="header">
+        <a class="wordmark" href="#top" lang="en" aria-label="Landingforyou"><img src="/assets/wordmark.webp" alt="" width="1602" height="982"></a>
+        <nav class="navigation" aria-label="Разделы портфолио">
+          <a href="#process">Обо мне</a>
+          <a href="#work">Работы</a>
+          <a href="#services">Услуги</a>
+        </nav>
+        <a class="button contact-link" href="{{TELEGRAM}}"><span class="contact-dot" aria-hidden="true"></span> Связаться</a>
+      </header>
+      <section class="poster-body" aria-labelledby="hero-title">
+        <a class="poster-photo" href="#work" aria-label="Кейс «Биосфера Балтики»">
+          <img src="{{FEATURE_IMAGE}}" alt="">
+        </a>
+        <div class="poster-copy">
+          <p class="poster-intro"><span lang="en">{{INTRO}}</span><br>{{SUBTITLE}}</p>
+          <h1 class="poster-title" id="hero-title">
+            <span>{{HEADLINE}}</span>
+            <span>{{HEADLINE2}} <em>{{HEADLINE3}}</em></span>
+          </h1>
+          <a class="poster-cta" href="#work">Смотреть работы <span aria-hidden="true">↓</span></a>
+        </div>
+      </section>
+      {{SERVICE_NAV}}
+    </div>
+
+    <div class="sticker sticker-pink" aria-hidden="true" lang="en">
+      <svg class="bird" viewBox="0 0 142 115" fill="none" focusable="false">
+        <path d="M99 90c11 13 10 17 23 17m-21-4 10-8m-40-2-11 15m-7-7 19 8M45 65C28 67 15 62 8 55c16 2 23 2 39-1C67 48 80 38 86 25c-5-4-6-12 0-17 7-6 20-2 25 5l12 3-7 9-5 10c9-3 14-11 20-17 1 9-2 16-5 23l9-3c-4 15-15 28-24 33-6 16-23 22-39 20-8-1-16-7-21-14-11 5-27 6-36 0 11-3 22-6 30-12Z" stroke="#ffa6df" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="#ffa6df"/>
+        <path d="M99 90c11 13 10 17 23 17m-21-4 10-8m-40-2-11 15m-7-7 19 8M45 65C28 67 15 62 8 55c16 2 23 2 39-1C67 48 80 38 86 25c-5-4-6-12 0-17 7-6 20-2 25 5l12 3-7 9-5 10c9-3 14-11 20-17 1 9-2 16-5 23l9-3c-4 15-15 28-24 33-6 16-23 22-39 20-8-1-16-7-21-14-11 5-27 6-36 0 11-3 22-6 30-12Zm42-37c7 5 15 8 24 7m0 0c-4 6-4 17 0 25M40 67l22-9" stroke="#191213" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="102" cy="17" r="3" fill="#191213"/>
+      </svg>
+      <div class="pink-lettering"><b>VC</b><span>CODE<br>CLUB</span></div>
+    </div>
+
+    <div class="sticker sticker-yellow" aria-hidden="true" lang="en"><span>BUILD</span><b>BEYOND</b><i>!</i></div>
+    <div class="sticker sticker-red" aria-hidden="true" lang="en">
+      <svg viewBox="0 0 101 79" focusable="false"><path fill="currentColor" d="M0 1c34 21 61 22 101 27v44c-29 3-54-4-66-16 13 2 22 1 31-2C42 55 22 46 14 34c12 6 26 9 37 8C22 35 8 20 0 1Z"/></svg>
+      <b>SHIP<br>IT!</b>
+    </div>
+
+    <a class="sticker scroll-sticker" href="#work" aria-label="Прокрутить к работам">
+      <svg viewBox="0 0 112 112" aria-hidden="true" focusable="false">
+        <defs><path id="scroll-top" d="M 18,55 A 38,38 0 0,1 94,55"/><path id="scroll-bottom" d="M 16,63 A 40,40 0 0,0 96,63"/></defs>
+        <text><textPath href="#scroll-top" startOffset="50%" text-anchor="middle">THIS IS HOW</textPath></text>
+        <text><textPath href="#scroll-bottom" startOffset="50%" text-anchor="middle">WE SCROLL</textPath></text>
+        <g stroke="currentColor" fill="none" stroke-width="2.2" transform="rotate(-14 56 55)">
+          <circle cx="56" cy="55" r="17"/><ellipse cx="56" cy="55" rx="8" ry="17"/>
+          <path d="M39 55h34M56 38v34"/>
+        </g>
+      </svg>
+    </a>
+
+    <div class="sticker sticker-orange" aria-hidden="true">
+      <svg viewBox="0 0 142 178" focusable="false">
+        <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M65 116c-20 5-28 19-40 40l-15-6m72-35 21 26 22-12 9 14" stroke="#ff6711" stroke-width="16"/>
+          <path d="M65 116c-20 5-28 19-40 40l-15-6m72-35 21 26 22-12 9 14" stroke="#171213" stroke-width="4"/>
+        </g>
+        <path d="M44 113C23 101 23 79 26 57c5 7 10 9 15 13-6-17 4-29 8-43 6 9 7 14 15 19C72 31 74 16 74 6c15 16 26 35 24 51 6-7 8-13 9-21 13 13 16 30 13 47l13-12c-2 24-13 41-28 47-18 7-42 6-61-5Z" fill="#ff6912" stroke="#ff6912" stroke-width="11" stroke-linejoin="round"/>
+        <path d="M44 113C23 101 23 79 26 57c5 7 10 9 15 13-6-17 4-29 8-43 6 9 7 14 15 19C72 31 74 16 74 6c15 16 26 35 24 51 6-7 8-13 9-21 13 13 16 30 13 47l13-12c-2 24-13 41-28 47-18 7-42 6-61-5Z" fill="#ff6912" stroke="#171213" stroke-width="4" stroke-linejoin="round"/>
+        <path d="M48 110c-10-9-13-22-10-33l12 9c-3-13 2-27 9-32 2 9 8 12 10 17 4-11 14-19 15-29 9 13 12 26 9 36 7-4 11-9 13-15 4 8 5 16 2 23l13-7c-5 23-18 39-39 40-14 1-24-3-34-9Z" fill="#ffb41b"/>
+        <g stroke="#171213" stroke-width="3.5" fill="none" transform="rotate(-5 76 92)">
+          <ellipse cx="65" cy="90" rx="11" ry="14"/><ellipse cx="92" cy="90" rx="11" ry="14"/><ellipse cx="80" cy="111" rx="4.5" ry="6"/>
+        </g>
+        <ellipse cx="63" cy="87" rx="5.5" ry="8" fill="#171213"/><ellipse cx="90" cy="86" rx="5.5" ry="8" fill="#171213"/>
+      </svg>
+    </div>
+  </div>
+  <main>
+    {{WORK}}
+
+    {{SERVICES}}
+
+    {{ABOUT}}
+
+    <section class="contact pad" id="contact" aria-labelledby="contact-title">
+      <h2 class="section-heading" id="contact-title">Обсудим проект?</h2>
+      <p>Расскажите, что хотите создать или доработать.</p>
+      <button type="button" class="button light" data-open="contact-dialog">Описать задачу <span aria-hidden="true">↗</span></button>
+    </section>
+  </main>
+
+  <footer class="footer pad">
+    <a href="#top">Александр. ↑</a>
+    <a href="/admin">Управление сайтом ↗</a>
+  </footer>
+
+  {{CASES}}
+
+  {{CONTACT_DIALOG}}
+
+  <script defer src="/site.js"></script>
+</body>
+</html>
