@@ -68,6 +68,9 @@ function prepareOpeningScroll() {
   const controller = new AbortController();
   let animation = 0;
   let cancelled = false;
+  let ready = false;
+  let scheduled = false;
+  let started = false;
   function cancelOpeningScroll() {
     cancelled = true;
     cancelAnimationFrame(animation);
@@ -80,43 +83,65 @@ function prepareOpeningScroll() {
       signal: controller.signal
     });
   }
-  document.addEventListener('visibilitychange', cancelOpeningScroll, { signal: controller.signal });
-  reducedMotion.addEventListener('change', cancelOpeningScroll, { signal: controller.signal });
-
-  addEventListener('pageshow', event => {
-    if (event.persisted) {
+  document.addEventListener('visibilitychange', () => {
+    if (started) {
       cancelOpeningScroll();
       return;
     }
-    document.fonts.ready.then(() => {
+    // A new tab can load in the background. Wait for its first visible frame.
+    cancelAnimationFrame(animation);
+    scheduled = false;
+    scheduleOpeningScroll();
+  }, { signal: controller.signal });
+  addEventListener('pagehide', cancelOpeningScroll, { once: true, signal: controller.signal });
+  reducedMotion.addEventListener('change', cancelOpeningScroll, { signal: controller.signal });
+
+  function scheduleOpeningScroll() {
+    if (!ready || scheduled || cancelled || document.hidden) return;
+    scheduled = true;
+    animation = requestAnimationFrame(() => {
       animation = requestAnimationFrame(() => {
-        animation = requestAnimationFrame(() => {
-          if (cancelled || scrollY > 1 || location.hash || document.hidden) {
-            cancelOpeningScroll();
-            return;
-          }
-          const copy = document.querySelector('.poster-copy').getBoundingClientRect();
-          const target = Math.min(
-            document.documentElement.scrollHeight - innerHeight,
-            Math.max(0, copy.top + copy.height / 2 - innerHeight / 2)
-          );
-          if (target < 2) {
-            controller.abort();
-            return;
-          }
-          const start = performance.now();
-          function advance(now) {
-            if (cancelled) return;
-            const progress = Math.min(1, (now - start) / 420);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            scrollTo({ top: target * eased, behavior: 'instant' });
-            if (progress < 1) animation = requestAnimationFrame(advance);
-            else controller.abort();
-          }
-          animation = requestAnimationFrame(advance);
-        });
+        scheduled = false;
+        if (cancelled || scrollY > 1 || location.hash || reducedMotion.matches) {
+          cancelOpeningScroll();
+          return;
+        }
+        if (document.hidden) return;
+        const copy = document.querySelector('.poster-copy').getBoundingClientRect();
+        const target = Math.min(
+          document.documentElement.scrollHeight - innerHeight,
+          Math.max(0, scrollY + copy.top + copy.height / 2 - innerHeight / 2)
+        );
+        if (target < 2) {
+          controller.abort();
+          return;
+        }
+        started = true;
+        const start = performance.now();
+        function advance(now) {
+          if (cancelled) return;
+          const progress = Math.min(1, (now - start) / 420);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          scrollTo({ top: target * eased, behavior: 'instant' });
+          if (progress < 1) animation = requestAnimationFrame(advance);
+          else controller.abort();
+        }
+        animation = requestAnimationFrame(advance);
       });
     });
-  }, { once: true, signal: controller.signal });
+  }
+
+  function prepareLayout() {
+    // The hero has fixed image dimensions; other images need not delay it.
+    document.fonts.ready.then(() => {
+      ready = true;
+      scheduleOpeningScroll();
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', prepareLayout, { once: true, signal: controller.signal });
+  } else {
+    prepareLayout();
+  }
 }
 prepareOpeningScroll();
