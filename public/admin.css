@@ -112,3 +112,7 @@ textarea { resize: vertical; }
 .github-dialog p { margin-top: 12px; }
 .github-dialog a { color: var(--blue); text-decoration: underline; }
 @media (max-width: 650px) { .pages-notice { padding: 16px 12px; } }
+
+.pages-notice [hidden] { display: none; }
+.pages-notice .error { color: #a42032; }
+.pages-notice a { text-decoration: underline; }

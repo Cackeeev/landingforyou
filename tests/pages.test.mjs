@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cpSync, mkdtempSync, readFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { normalizeContent } from '../src/content.mjs';
-import { pbkdf2Sync, createDecipheriv } from 'node:crypto';
+import { pbkdf2Sync, createDecipheriv, createHash } from 'node:crypto';
 
 test('Pages retains the footer admin entry and redirects only to a configured HTTP(S) login', () => {
   const directory = mkdtempSync(resolve(tmpdir(), 'landingforyou-pages-'));
@@ -14,6 +14,8 @@ test('Pages retains the footer admin entry and redirects only to a configured HT
     for (const path of ['src', 'scripts', 'templates', 'public', 'package.json']) {
       cpSync(resolve(path), resolve(directory, path), { recursive: true });
     }
+    writeFileSync(resolve(directory, 'src/seed.json'), readFileSync(new URL('./fixtures/content.json', import.meta.url)));
+    const initialImages = new Set(readdirSync(resolve(directory, 'public/assets')));
     const build = (base, adminUrl = '') => spawnSync(process.execPath, ['scripts/build-pages.mjs'], {
       cwd: directory,
       env: { ...process.env, NODE_ENV: 'test', DATA_DIR: resolve(directory, 'data'), PAGES_BASE_PATH: base, ADMIN_URL: adminUrl, PAGES_ADMIN_PASSWORD: 'test-pages-password' },
@@ -34,6 +36,12 @@ test('Pages retains the footer admin entry and redirects only to a configured HT
       assert.ok(existsSync(resolve(directory, 'dist/admin/editor.html')));
       assert.match(readFileSync(resolve(directory, 'dist/admin/editor.html'), 'utf8'), /Опубликовать в GitHub/);
       const bootstrap = JSON.parse(readFileSync(resolve(directory, 'dist/admin/bootstrap.json'), 'utf8'));
+      const deployed = JSON.parse(readFileSync(resolve(directory, 'dist/admin-deployment.json'), 'utf8'));
+      const seedSource = readFileSync(resolve(directory, 'src/seed.json'));
+      assert.equal(deployed.seedSha, createHash('sha1').update('blob ' + seedSource.length + '\0').update(seedSource).digest('hex'));
+      assert.equal(deployed.seedSha, bootstrap.seedSha);
+      assert.ok(Number.isFinite(Date.parse(deployed.builtAt)));
+      assert.ok(existsSync(resolve(directory, 'dist/admin/shared/publication.mjs')));
       const key = pbkdf2Sync('test-pages-password', Buffer.from(bootstrap.salt, 'base64'), bootstrap.iterations, 32, 'sha256');
       const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(bootstrap.iv, 'base64'));
       const encrypted = Buffer.from(bootstrap.data, 'base64');
@@ -60,6 +68,9 @@ test('Pages retains the footer admin entry and redirects only to a configured HT
     for (const mediaId of [id, privateId]) database.prepare('INSERT INTO media VALUES (?, ?, ?, ?)').run(mediaId, 'test.png', 'image/png', image);
     content.settings.logo = '/media/' + id;
     content.settings.accent = '#123abc';
+    content.projects[0].cardTheme = 'image';
+    content.projects[0].backgroundImage = '/media/' + id;
+    content.projects[0].cardText = '#ffffff';
     content.projects[0].gallery = [{ image: '/media/' + id, alt: 'Галерея проекта' }];
     const block = { id: 'photo-block', type: 'gallery', title: 'Галерея блока', description: '', body: '', image: '', images: [{ image: '/media/' + id, alt: 'Фото' }], url: '', linkLabel: '', status: 'published' };
     content.sections.push(block, { ...block, id: 'secret-block', title: 'DRAFT-SECRET', status: 'draft', images: [{ image: '/media/' + privateId, alt: '' }] });
@@ -74,8 +85,9 @@ test('Pages retains the footer admin entry and redirects only to a configured HT
     const published = JSON.parse(exportedText);
     assert.equal(published.settings.logo, '/assets/image-' + id + '.png');
     assert.equal(published.projects[0].gallery[0].image, published.settings.logo);
+    assert.equal(published.projects[0].backgroundImage, published.settings.logo);
     assert.equal(published.sections.at(-1).images[0].image, published.settings.logo);
-    assert.equal(readdirSync(resolve(directory, 'public/assets')).filter(name => name.startsWith('image-')).length, 1);
+    assert.equal(readdirSync(resolve(directory, 'public/assets')).filter(name => name.startsWith('image-') && !initialImages.has(name)).length, 1);
     assert.equal(build('/landingforyou/').status, 0);
     assert.match(readFileSync(resolve(directory, 'dist/theme.css'), 'utf8'), /--blue: #123abc/);
     assert.ok(existsSync(resolve(directory, 'dist/assets/image-' + id + '.png')));

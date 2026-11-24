@@ -23,6 +23,7 @@ function exportImage(path) {
 settings.logo = exportImage(settings.logo);
 for (const project of projects) {
   project.image = exportImage(project.image);
+  project.backgroundImage = exportImage(project.backgroundImage);
   project.gallery = project.gallery.map(item => ({ ...item, image: exportImage(item.image) }));
 }
 for (const section of sections) {

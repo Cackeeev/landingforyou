@@ -9,6 +9,8 @@ export const defaultSettings = {
   footerText: 'Александр.', adminLabel: 'Войти в админку'
 };
 
+export const projectThemes = { mint: 'Мятная', light: 'Светлая', dark: 'Тёмная', blue: 'Синяя', custom: 'Свои цвета', image: 'Фоновое изображение' };
+
 export const defaultSections = [
   { id: 'work', type: 'projects', title: 'Работы', description: '', status: 'published' },
   { id: 'services', type: 'services', title: 'Услуги', description: '', status: 'published' },
@@ -28,7 +30,7 @@ export function normalizeContent(content) {
   settings.contactUrl ??= 'https://t.me/' + settings.telegram;
   return {
     ...content, settings,
-    projects: content.projects.map(project => ({ gallery: [], linkLabel: 'Открыть проект', ...project })),
+    projects: content.projects.map(project => ({ gallery: [], linkLabel: 'Открыть проект', cardTheme: 'mint', cardColor: '#d8eddf', cardText: '#173d37', backgroundImage: '', ...project })),
     services: content.services.map(service => ({ url: '', linkLabel: '', ...service })),
     sections: (content.sections ?? defaultSections).map(section => ({ description: '', body: '', image: '', images: [], url: '', linkLabel: '', ...section })),
     navigation: structuredClone(content.navigation ?? defaultNavigation)
@@ -37,12 +39,13 @@ export function normalizeContent(content) {
 
 export function imagePaths(content) {
   return [content.settings.logo,
-    ...content.projects.flatMap(project => [project.image, ...project.gallery.map(item => item.image)]),
+    ...content.projects.flatMap(project => [project.image, project.backgroundImage, ...project.gallery.map(item => item.image)]),
     ...content.sections.flatMap(section => [section.image, ...section.images.map(item => item.image)])
   ].filter(Boolean);
 }
 
-export function themeCss(settings) {
+export function themeCss(settings, projects = []) {
   const color = (value, fallback) => /^#[a-fA-F0-9]{6}$/.test(value) ? value : fallback;
-  return `:root { --blue: ${color(settings.accent, defaultSettings.accent)}; --paper: ${color(settings.paper, defaultSettings.paper)}; --poster-paper: ${color(settings.paper, defaultSettings.paper)}; }\n`;
+  const cards = projects.filter(project => ['custom', 'image'].includes(project.cardTheme) && /^[a-zA-Z0-9-]+$/.test(project.id)).map(project => `.project-preview[data-project="${project.id}"] { --project-background: ${color(project.cardColor, '#d8eddf')}; --project-text: ${color(project.cardText, project.cardTheme === 'image' ? '#ffffff' : '#173d37')}; }`).join('\n');
+  return `:root { --blue: ${color(settings.accent, defaultSettings.accent)}; --paper: ${color(settings.paper, defaultSettings.paper)}; --poster-paper: ${color(settings.paper, defaultSettings.paper)}; }\n${cards}\n`;
 }

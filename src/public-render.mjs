@@ -18,9 +18,10 @@ export function renderContent(rawContent, template) {
   const validLink = url => url && (!url.startsWith('#') || anchors.has(url.slice(1)));
   const cta = (url, label, className = 'button') => validLink(url) && label ? `<a class="${className}" href="${escape(url)}">${escape(label)} <span aria-hidden="true">↗</span></a>` : '';
   const work = projects.map(project => `
-    <button type="button" class="project-preview" data-open="case-${escape(project.id)}">
-      <img src="${escape(project.image)}" alt="Логотип или изображение проекта «${escape(project.title)}»" loading="lazy">
-      <span class="project-label"><span><small>${escape(project.category)}</small><span class="project-name">${escape(project.title)}</span></span><span class="circle-arrow" aria-hidden="true">↗</span></span>
+    <button type="button" class="project-preview project-preview--${escape(project.cardTheme)}" data-project="${escape(project.id)}" data-open="case-${escape(project.id)}">
+      ${project.cardTheme === 'image' && project.backgroundImage ? `<img class="project-background" src="${escape(project.backgroundImage)}" alt="" aria-hidden="true" loading="lazy">` : ''}
+      <img class="project-cover" src="${escape(project.image)}" alt="Логотип или изображение проекта «${escape(project.title)}»" loading="lazy">
+      <span class="project-label"><span><small>${escape(project.category)}</small><span class="project-name">${escape(project.title)}</span></span><span class="circle-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 19 5M5 5h14v14"/></svg></span></span>
     </button>`).join('');
   const cases = !workSection ? '' : projects.map(project => `
     <dialog id="case-${escape(project.id)}" aria-labelledby="title-${escape(project.id)}">

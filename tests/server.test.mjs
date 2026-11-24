@@ -27,6 +27,7 @@ test('server authorization, publishing, requests and persistence', async () => {
   }
   let server = await start();
   let database = new DatabaseSync(resolve(directory, 'portfolio.sqlite'));
+  database.prepare('UPDATE content SET body=?, revision=1 WHERE id=1').run(readFileSync(new URL('./fixtures/content.json', import.meta.url), 'utf8'));
   database.prepare('INSERT INTO credentials VALUES (?, ?, ?)').run('admin', 'test-salt', scryptSync('test-password','test-salt',64).toString('hex'));
   const query = async (path, { cookie, csrf, origin, ...options } = {}) => {
     return fetch(server.address + path, {
@@ -132,7 +133,9 @@ test('server authorization, publishing, requests and persistence', async () => {
     const previewContent=structuredClone(content);
     previewContent.settings.accent='#bb0088';
     const themedPreview=await (await query('/api/admin/preview',{cookie,csrf,method:'POST',body:JSON.stringify(previewContent)})).json();
-    assert.match(themedPreview.html,/theme.css\?accent=%23bb0088/);
+    const previewCss=themedPreview.html.match(/href="(\/api\/admin\/preview-theme\/[^"]+)"/)[1];
+    assert.match(await (await query(previewCss,{cookie})).text(),/--blue: #bb0088/);
+    assert.equal((await query(previewCss)).status,401);
     assert.match(await (await query('/theme.css?accent=%23bb0088')).text(),/--blue: #bb0088/);
     assert.match(await (await query('/theme.css')).text(),/--blue: #123abc/);
     const missingImage=structuredClone(content);

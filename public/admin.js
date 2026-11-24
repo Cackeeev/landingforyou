@@ -31,7 +31,7 @@ async function initializeAdmin() {
   const notice = document.getElementById('save-status');
   const labels = { sections: 'Блоки страницы', projects: 'Проекты', services: 'Услуги', navigation: 'Меню и ссылки', settings: 'Тексты и контакты', appearance: 'Оформление', media: 'Медиатека', requests: 'Заявки' };
   const types = { projects: 'Проекты', services: 'Услуги', about: 'Обо мне', contact: 'Контакты', text: 'Текст', image: 'Текст и изображение', gallery: 'Галерея', cta: 'Блок с кнопкой' };
-  const statuses = { draft: 'Черновик', published: 'Опубликован', hidden: 'Скрыт' };
+  const statuses = { draft: 'Черновик', published: window.pagesAdmin ? 'Включён в публикацию' : 'Опубликован', hidden: 'Скрыт' };
   let content;
   let tab = 'sections';
   let selected = 0;
@@ -39,10 +39,22 @@ async function initializeAdmin() {
   let dirty = false;
   let uploads = 0;
   let editVersion = 0;
+  let savedContent;
+  let recordControls = [];
   addEventListener('beforeunload', event => { if (dirty || uploads) { event.preventDefault(); event.returnValue = ''; } });
 
   function message(text, error = false) { notice.textContent = text; notice.classList.toggle('error', error); }
-  function changed() { dirty = true; editVersion++; message('Есть несохранённые изменения.'); }
+  function syncButtons() {
+    document.getElementById('save').disabled = busy || uploads > 0 || !dirty;
+    for (const control of recordControls) {
+      const previous = savedContent?.[control.collection]?.find(row => row.id === control.record.id);
+      const unchanged = previous && JSON.stringify(previous) === JSON.stringify(control.record);
+      control.node.disabled = busy || uploads > 0 || (control.record.status === control.state && unchanged);
+    }
+    if (content && window.pagesAdmin?.onEditorChange) window.pagesAdmin.onEditorChange(content, { dirty, busy, uploads });
+  }
+  function changed() { dirty = true; editVersion++; message('Есть несохранённые изменения.'); syncButtons(); }
+  function uploading(delta) { uploads += delta; syncButtons(); }
   async function api(path, options = {}) {
     const response = await adminFetch(path, { ...options, headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': content?.csrf || '', ...options.headers } });
     const data = await response.json();
@@ -84,10 +96,11 @@ async function initializeAdmin() {
   async function save() {
     if (busy) return;
     if (uploads) { message('Дождитесь завершения загрузки изображений.', true); return; }
-    busy = true; document.getElementById('save').disabled = true;
+    busy = true; syncButtons();
     const savingVersion = editVersion;
     try {
       const saved = await api('/api/admin/content', { method: 'PUT', body: JSON.stringify(content) });
+      savedContent = structuredClone(saved);
       if (editVersion === savingVersion) {
         content = saved; dirty = false; message(window.pagesAdmin ? 'Изменения сохранены в этом браузере. Для обновления сайта нажмите «Опубликовать в GitHub».' : 'Изменения сохранены. Опубликованный контент обновлён на сайте.'); render();
       } else {
@@ -95,7 +108,7 @@ async function initializeAdmin() {
         message('Сохранено. Есть новые несохранённые изменения.');
       }
     } catch (error) { message(error.message, true); }
-    finally { busy = false; document.getElementById('save').disabled = false; }
+    finally { busy = false; syncButtons(); }
   }
   async function uploadFile(file) {
     if (!file) throw new Error('Выберите изображение.');
@@ -129,10 +142,10 @@ async function initializeAdmin() {
     const upload = element('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', 'aria-label': 'Загрузить ' + labelText.toLowerCase() });
     upload.addEventListener('change', async () => {
       if (!upload.files.length) return;
-      upload.disabled = true; uploads++;
+      upload.disabled = true; uploading(1);
       try { update((await uploadFile(upload.files[0])).url); changed(); }
       catch (error) { message(error.message, true); }
-      finally { uploads--; upload.disabled = false; upload.value = ''; }
+      finally { uploading(-1); upload.disabled = false; upload.value = ''; }
     });
     const actions = element('div', { class: 'header-actions' });
     actions.append(button('Выбрать из медиатеки', () => pickImage(update)));
@@ -144,11 +157,11 @@ async function initializeAdmin() {
     box.append(element('legend', {}, 'Галерея изображений'));
     const upload = element('input', { type: 'file', multiple: '', accept: 'image/png,image/jpeg,image/webp', 'aria-label': 'Добавить изображения в галерею' });
     upload.addEventListener('change', async () => {
-      uploads++; upload.disabled = true;
+      uploading(1); upload.disabled = true;
       try {
         for (const file of upload.files) { record[key].push({ image: (await uploadFile(file)).url, alt: '' }); changed(); }
       } catch (error) { message(error.message, true); }
-      finally { uploads--; render(); }
+      finally { uploading(-1); render(); }
     });
     box.append(upload, button('Добавить из медиатеки', () => pickImage(url => { record[key].push({ image: url, alt: '' }); render(); })));
     record[key].forEach((item, index) => {
@@ -166,6 +179,19 @@ async function initializeAdmin() {
   function projectEditor(panel, record) {
     const form = element('div', { class: 'fields' });
     for (const [key, label, type] of [['title', 'Название'], ['category', 'Подпись на карточке'], ['task', 'Задача', 'textarea'], ['description', 'Результат и описание', 'textarea'], ['technologies', 'Технологии'], ['url', 'Ссылка на проект'], ['linkLabel', 'Текст кнопки проекта']]) field(form, label, record, key, type);
+    select(form, 'Оформление плитки', record.cardTheme, { mint: 'Мятная', light: 'Светлая', dark: 'Тёмная', blue: 'Синяя', custom: 'Свои цвета', image: 'Фоновое изображение' }, value => {
+      record.cardTheme = value;
+      if (value === 'image') { record.cardText = '#ffffff'; record.cardColor = '#17191e'; }
+      render();
+    });
+    if (['custom', 'image'].includes(record.cardTheme)) {
+      field(form, 'Цвет фона плитки', record, 'cardColor', 'color');
+      field(form, 'Цвет текста плитки', record, 'cardText', 'color');
+    }
+    if (record.cardTheme === 'image') {
+      imageField(form, 'Фон плитки', record, 'backgroundImage', true);
+      form.append(element('p', { class: 'hint' }, 'Картинка заполняет плитку целиком. Изображение проекта остаётся внутри кейса.'));
+    }
     imageField(form, 'Изображение проекта', record, 'image'); galleryEditor(form, record, 'gallery'); panel.append(form);
   }
   function sectionEditor(panel, record) {
@@ -194,7 +220,7 @@ async function initializeAdmin() {
   }
   function createRecord() {
     const base = { id: crypto.randomUUID(), status: 'draft' };
-    if (tab === 'projects') return { ...base, title: 'Новый проект', category: '', task: '', description: '', technologies: '', url: '', linkLabel: 'Открыть проект', image: '/assets/baltic-logo.png', gallery: [] };
+    if (tab === 'projects') return { ...base, title: 'Новый проект', category: '', task: '', description: '', technologies: '', url: '', linkLabel: 'Открыть проект', image: '/assets/baltic-logo.png', gallery: [], cardTheme: 'mint', cardColor: '#d8eddf', cardText: '#173d37', backgroundImage: '' };
     if (tab === 'services') return { ...base, title: 'Новая услуга', nav: '', description: '', url: '', linkLabel: '' };
     if (tab === 'navigation') return { ...base, label: 'Новая ссылка', url: '' };
     return { ...base, id: 'block-' + base.id, title: 'Новый блок', type: 'text', description: '', body: '', image: '', images: [], url: '', linkLabel: '' };
@@ -233,7 +259,11 @@ async function initializeAdmin() {
         move.disabled = selected + delta < 0 || selected + delta >= records.length; order.append(move);
       }
       const actions = element('div', { class: 'header-actions fields' });
-      for (const [state, label] of [['draft', 'Сохранить черновик'], ['published', 'Опубликовать'], ['hidden', 'Скрыть']]) actions.append(button(label, () => { record.status = state; changed(); save(); }, state === 'published' ? 'primary' : ''));
+      for (const [state, label] of [['draft', 'Сохранить черновик'], ['published', 'Опубликовать'], ['hidden', 'Скрыть']]) {
+        const node = button(label, () => { record.status = state; changed(); save(); }, state === 'published' ? 'primary' : '');
+        recordControls.push({ node, record, collection: tab, state }); actions.append(node);
+      }
+      if (window.pagesAdmin) actions.append(element('p', { class: 'hint' }, 'Эта кнопка сохраняет материал для публикации. Чтобы обновить сайт, нажмите «Опубликовать в GitHub» вверху.'));
       actions.append(button('Удалить', () => {
         if (!confirm('Удалить «' + (record.title || record.label) + '»? Изменение применится после сохранения.')) return;
         records.splice(selected, 1); selected = Math.min(selected, records.length - 1); changed(); render();
@@ -267,17 +297,17 @@ async function initializeAdmin() {
     toggle(panel, 'Показывать декоративные стикеры', content.settings.showStickers, value => { content.settings.showStickers = value; });
   }
   function usedImage(url) {
-    return content.settings.logo === url || content.projects.some(row => row.image === url || row.gallery.some(item => item.image === url)) || content.sections.some(row => row.image === url || row.images.some(item => item.image === url));
+    return content.settings.logo === url || content.projects.some(row => row.image === url || row.backgroundImage === url || row.gallery.some(item => item.image === url)) || content.sections.some(row => row.image === url || row.images.some(item => item.image === url));
   }
   async function mediaEditor() {
     const panel = group('Медиатека');
     const uploadLabel = element('label', {}, 'Загрузить изображения');
     const upload = element('input', { type: 'file', multiple: '', accept: 'image/png,image/jpeg,image/webp' }); uploadLabel.append(upload); panel.append(uploadLabel);
     upload.addEventListener('change', async () => {
-      uploads++; upload.disabled = true;
+      uploading(1); upload.disabled = true;
       try { for (const file of upload.files) await uploadFile(file); message('Изображения загружены.'); }
       catch (error) { message(error.message, true); }
-      finally { uploads--; render(); }
+      finally { uploading(-1); render(); }
     });
     const media = await api('/api/admin/media');
     if (tab !== 'media') return;
@@ -307,7 +337,7 @@ async function initializeAdmin() {
   }
   function switchTab(next) { tab = next; selected = 0; render(); }
   function render() {
-    area.replaceChildren(); document.getElementById('section-title').textContent = labels[tab];
+    recordControls = []; area.replaceChildren(); document.getElementById('section-title').textContent = labels[tab];
     document.querySelectorAll('[data-tab]').forEach(button => {
       if (button.dataset.tab === tab) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
     });
@@ -316,6 +346,7 @@ async function initializeAdmin() {
     else if (tab === 'appearance') appearanceEditor();
     else if (tab === 'media') mediaEditor().catch(error => message(error.message, true));
     else requestsEditor().catch(error => message(error.message, true));
+    syncButtons();
   }
   document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => switchTab(button.dataset.tab)));
   document.getElementById('save').addEventListener('click', save);
@@ -336,6 +367,6 @@ async function initializeAdmin() {
     if (dirty) await save();
     if (busy || dirty || uploads) throw new Error('Сначала завершите сохранение изменений.');
   };
-  try { content = await api('/api/admin/content'); message('Контент загружен.'); render(); }
+  try { content = await api('/api/admin/content'); savedContent = structuredClone(content); message('Контент загружен.'); render(); }
   catch (error) { message(error.message, true); }
 }
