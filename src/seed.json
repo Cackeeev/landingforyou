@@ -1,5 +1,26 @@
 {
   "settings": {
+    "siteTitle": "Александр — веб-разработка и сопровождение",
+    "brandName": "Landingforyou",
+    "logo": "/assets/wordmark.webp",
+    "accent": "#0d33ed",
+    "paper": "#f1f1f0",
+    "showStickers": true,
+    "heroCtaLabel": "Смотреть работы",
+    "heroCtaUrl": "#work",
+    "contactLabel": "Связаться",
+    "contactLinkLabel": "Написать мне",
+    "contactDialogTitle": "Расскажите о задаче",
+    "contactActionLabel": "Описать задачу",
+    "contactMode": "dialog",
+    "showRequestForm": true,
+    "requestIntro": "Или оставьте заявку на сайте",
+    "requestNameLabel": "Имя",
+    "requestContactLabel": "Контакт",
+    "requestTaskLabel": "Задача",
+    "requestSubmitLabel": "Отправить заявку",
+    "footerText": "Александр.",
+    "adminLabel": "Войти в админку",
     "intro": "Web design & development",
     "subtitle": "С поддержкой после запуска",
     "headline": "Я помогу тебе",
@@ -13,42 +34,139 @@
       "Разработка",
       "Проверка и запуск",
       "Поддержка"
-    ]
+    ],
+    "contactUrl": "https://t.me/Alexandr_Vorobuov"
   },
   "projects": [
     {
+      "gallery": [],
+      "linkLabel": "Открыть проект",
       "id": "baltic",
+      "status": "published",
       "title": "Биосфера Балтики",
       "category": "Landing page · Некоммерческий проект",
       "description": "Лендинг с рассказом о проекте и разделом «Как помочь».",
       "task": "Рассказать о людях, которые помогают диким животным Калининградской области, и собрать способы помощи в одном месте.",
       "technologies": "HTML, CSS",
       "image": "/assets/baltic-logo.png",
-      "url": "",
-      "status": "published"
+      "url": ""
+    },
+    {
+      "gallery": [
+        {
+          "image": "/assets/image-3938f402-bddc-4971-8792-78225f328adb.jpg",
+          "alt": ""
+        }
+      ],
+      "linkLabel": "Открыть проект",
+      "id": "ae1a0d76-3d96-407d-b086-6201a52e59a4",
+      "status": "published",
+      "title": "Стим для Гейба",
+      "category": "Он реально сам попросил ему стим сделать",
+      "description": "Гои прогреты, ножи теперь можно крафтить, экономика скинов кс пошатнулась, но еще стоит",
+      "task": "Создание уникальной платформы для покупки скинов для кс",
+      "technologies": "PHP",
+      "image": "/assets/image-f5634bb0-1ff0-4127-a1e5-f0258d582854.jpg",
+      "url": "https://store.steampowered.com/?l=russian"
     }
   ],
   "services": [
     {
+      "url": "",
+      "linkLabel": "",
       "id": "sites",
+      "status": "published",
       "title": "Сайты и лендинги",
       "nav": "Лендинги",
-      "description": "Разрабатываю лендинги и многостраничные сайты под вашу задачу.",
-      "status": "published"
+      "description": "Разрабатываю лендинги и многостраничные сайты под вашу задачу."
     },
     {
+      "url": "",
+      "linkLabel": "",
       "id": "apps",
+      "status": "published",
       "title": "Веб-приложения",
       "nav": "Веб-приложения",
-      "description": "Собираю прототипы и первые версии продуктов, создаю интерфейсы и подключаю внешние сервисы.",
-      "status": "published"
+      "description": "Собираю прототипы и первые версии продуктов, создаю интерфейсы и подключаю внешние сервисы."
     },
     {
+      "url": "",
+      "linkLabel": "",
       "id": "support",
+      "status": "published",
       "title": "Поддержка и развитие",
       "nav": "Сопровождение",
-      "description": "После запуска исправляю ошибки, обновляю контент и добавляю функции по договорённости.",
-      "status": "published"
+      "description": "После запуска исправляю ошибки, обновляю контент и добавляю функции по договорённости."
+    }
+  ],
+  "sections": [
+    {
+      "description": "",
+      "body": "",
+      "image": "",
+      "images": [],
+      "url": "",
+      "linkLabel": "",
+      "id": "work",
+      "status": "published",
+      "type": "projects",
+      "title": "Работы"
+    },
+    {
+      "description": "",
+      "body": "",
+      "image": "",
+      "images": [],
+      "url": "",
+      "linkLabel": "",
+      "id": "services",
+      "status": "published",
+      "type": "services",
+      "title": "Услуги"
+    },
+    {
+      "description": "",
+      "body": "",
+      "image": "",
+      "images": [],
+      "url": "",
+      "linkLabel": "",
+      "id": "process",
+      "status": "published",
+      "type": "about",
+      "title": "Обо мне"
+    },
+    {
+      "description": "Расскажите, что хотите создать или доработать.",
+      "body": "",
+      "image": "",
+      "images": [],
+      "url": "",
+      "linkLabel": "",
+      "id": "contact",
+      "status": "published",
+      "type": "contact",
+      "title": "Обсудим проект?"
+    }
+  ],
+  "navigation": [
+    {
+      "id": "about-link",
+      "status": "published",
+      "label": "Обо мне",
+      "url": "#process"
+    },
+    {
+      "id": "work-link",
+      "status": "published",
+      "label": "Работы",
+      "url": "#work"
+    },
+    {
+      "id": "services-link",
+      "status": "published",
+      "label": "Услуги",
+      "url": "#services"
     }
   ]
 }
