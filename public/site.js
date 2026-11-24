@@ -2,19 +2,34 @@
 const poster = document.querySelector('.poster');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let frame = 0;
+let posterHeight = poster.offsetHeight;
+let lastMotion = '';
 
 function updateScroll() {
   frame = 0;
-  const progress = reducedMotion.matches ? 0 : Math.max(0, Math.min(1, scrollY / poster.offsetHeight));
-  poster.style.setProperty('--poster-motion', progress.toFixed(4));
+  const progress = reducedMotion.matches ? 0 : Math.max(0, Math.min(1, scrollY / Math.max(1, posterHeight)));
+  const motion = progress.toFixed(4);
+  // Once the poster is offscreen, scrolling must not keep invalidating its styles.
+  if (motion === lastMotion) return;
+  poster.style.setProperty('--poster-motion', motion);
+  lastMotion = motion;
 }
 
 function scheduleScroll() {
   if (!frame) frame = requestAnimationFrame(updateScroll);
 }
 
+function measurePoster() {
+  posterHeight = poster.offsetHeight;
+  scheduleScroll();
+}
+
 addEventListener('scroll', scheduleScroll, { passive: true });
-addEventListener('resize', scheduleScroll);
+if (typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(measurePoster).observe(poster);
+} else {
+  addEventListener('resize', measurePoster);
+}
 reducedMotion.addEventListener('change', scheduleScroll);
 updateScroll();
 
