@@ -25,6 +25,7 @@ const publicFiles = new Map([
   ['/assets/wordmark.webp', ['public/assets/wordmark.webp', 'image/webp']]
 ]);
 const attempts = new Map();
+const previewThemes = new Map();
 function fail(status, message) { throw Object.assign(new Error(message), { status }); }
 
 async function jsonBody(req) {
@@ -105,6 +106,12 @@ export const server = http.createServer(async (req, res) => {
     if (path.startsWith('/api/admin') || path === '/api/logout') {
       if (!auth) fail(401, 'Войдите в админку.');
       if (mutation && req.headers['x-csrf-token'] !== auth.csrf) fail(403, 'Обновите страницу и повторите действие.');
+      if (path.startsWith('/api/admin/preview-theme/') && req.method === 'GET') {
+        const preview = previewThemes.get(path.split('/').pop());
+        if (!preview || preview.expires < Date.now() || preview.session !== auth.hash) fail(404, 'Предпросмотр устарел. Откройте его заново.');
+        send(200, preview.css, 'text/css');
+        return;
+      }
       if (path === '/api/logout' && req.method === 'POST') {
         db.prepare('DELETE FROM sessions WHERE hash=?').run(auth.hash);
         res.setHeader('Set-Cookie', 'session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
@@ -136,7 +143,11 @@ export const server = http.createServer(async (req, res) => {
         content.sections = content.sections.map(item => ({ ...item, status: 'published' }));
         content.navigation = content.navigation.map(item => ({ ...item, status: 'published' }));
         // Preview the unsaved palette without writing it to the live theme.
-        const palette = '/theme.css?accent=' + encodeURIComponent(content.settings.accent) + '&amp;paper=' + encodeURIComponent(content.settings.paper);
+        for (const [key, value] of previewThemes) if (value.expires < Date.now()) previewThemes.delete(key);
+        if (previewThemes.size >= 20) previewThemes.delete(previewThemes.keys().next().value);
+        const key = randomUUID();
+        previewThemes.set(key, { session: auth.hash, css: themeCss(content.settings, content.projects), expires: Date.now() + 300000 });
+        const palette = '/api/admin/preview-theme/' + key;
         send(200, { html: renderSite(content).replace('href="/theme.css"', `href="${palette}"`) });
         return;
       }
@@ -191,7 +202,7 @@ export const server = http.createServer(async (req, res) => {
     }
     if (path === '/theme.css') {
       const settings = readContent().settings;
-      send(200, themeCss({ ...settings, accent: url.searchParams.get('accent') || settings.accent, paper: url.searchParams.get('paper') || settings.paper }), 'text/css');
+      send(200, themeCss({ ...settings, accent: url.searchParams.get('accent') || settings.accent, paper: url.searchParams.get('paper') || settings.paper }, readContent().projects), 'text/css');
       return;
     }
     if (path === '/' || path === '/index.html') {

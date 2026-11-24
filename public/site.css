@@ -71,8 +71,8 @@
       text-align: left;
       overflow: hidden;
     }
-    .project-preview img { width: 100%; height: clamp(270px, 55vw, 700px); object-fit: cover; object-position: center 44%; transition: transform .6s cubic-bezier(.2,.8,.2,1); }
-    .project-preview:hover img, .project-preview:focus-visible img { transform: scale(1.055); }
+    .project-preview > .project-cover { width: 100%; height: clamp(270px, 55vw, 700px); object-fit: cover; object-position: center 44%; transition: transform .6s cubic-bezier(.2,.8,.2,1); }
+    .project-preview:hover > .project-cover, .project-preview:focus-visible > .project-cover { transform: scale(1.055); }
     .project-preview::after { position: absolute; inset: 25% 0 0; content: ""; background: linear-gradient(transparent, #0009); }
     .project-label { position: absolute; z-index: 1; bottom: clamp(17px, 4vw, 58px); left: clamp(18px, 4vw, 58px); right: clamp(18px, 4vw, 58px); display: flex; align-items: end; justify-content: space-between; gap: 15px; }
     .project-label small { display: block; margin-bottom: 4px; font-size: clamp(11px, 1.15vw, 15px); }
@@ -348,8 +348,8 @@
 
     .work { background: var(--poster-paper); color: var(--ink); }
     .work .section-heading { color: var(--blue); }
-    .work .project-preview { background: #d8eddf; color: #173d37; }
-    .work .project-preview img {
+    .work .project-preview { background: var(--project-background, #d8eddf); color: var(--project-text, #173d37); isolation: isolate; }
+    .work .project-preview > .project-cover {
       height: clamp(300px, 46vw, 580px);
       padding: 6% 19% 11%;
       object-fit: contain;
@@ -357,7 +357,8 @@
     }
     .work .project-preview::after { content: none; }
     .work .circle-arrow { border-color: currentColor; background: transparent; }
-    .work .project-preview:hover .circle-arrow { background: #173d37; color: white; }
+    .work .project-preview:hover .circle-arrow, .work .project-preview:focus-visible .circle-arrow { background: var(--project-text, #173d37); color: inherit; }
+    .work .project-preview:hover .circle-arrow > svg, .work .project-preview:focus-visible .circle-arrow > svg { color: var(--project-background, #d8eddf); }
     @media (min-width: 761px) {
       .work { padding-inline: var(--panel-margin); }
       .work-heading, .work > .section-description { margin-inline: calc(var(--gutter) - var(--panel-margin)); }
@@ -371,7 +372,7 @@
         padding: clamp(32px, 4vw, 64px) calc(var(--gutter) - var(--panel-margin));
         border-radius: 24px;
       }
-      .work .project-preview > img {
+      .work .project-preview > .project-cover {
         flex: none;
         width: clamp(300px, 32vw, 760px);
         max-width: 100%;
@@ -410,7 +411,7 @@
       .sticker-red { top: 35%; font-size: clamp(15px, 4.5vw, 34px); }
       .scroll-sticker { top: auto; bottom: 104px; right: 1%; width: clamp(48px, 12vw, 68px); }
       .sticker-orange { left: 37%; bottom: 0; width: clamp(49px, 12vw, 78px); }
-      .work .project-preview img { height: clamp(245px, 76vw, 420px); padding: 8% 13% 20%; }
+      .work .project-preview > .project-cover { height: clamp(245px, 76vw, 420px); padding: 8% 13% 20%; }
       .work .project-name { font-size: clamp(27px, 8vw, 58px); }
     }
 
@@ -459,3 +460,16 @@ dialog .case-tech { margin-top: 15px; font-size: 14px; }
   dialog { width: calc(100vw - 24px); padding: 24px 18px; border-radius: 24px; }
   dialog h2 { margin-top: 22px; }
 }
+
+.work .project-preview--mint { --project-background: #d8eddf; --project-text: #173d37; }
+.work .project-preview--light { --project-background: #f4f4f4; --project-text: #15151a; }
+.work .project-preview--dark { --project-background: #101114; --project-text: #ffffff; }
+.work .project-preview--blue { --project-background: #0d33ed; --project-text: #ffffff; }
+.work .project-preview--image { --project-background: #17191e; --project-text: #ffffff; }
+.work .project-preview > .project-cover { position: relative; z-index: 1; }
+.work .project-preview > .project-background { position: absolute; z-index: -1; inset: 0; width: 100%; height: 100%; padding: 0; object-fit: cover; object-position: center; }
+.work .project-preview--image::after { content: ""; z-index: 0; inset: 0; background: linear-gradient(180deg, #0003, #000b); pointer-events: none; }
+.work .project-preview--image > .project-cover { display: none; }
+@media (min-width: 761px) { .work .project-preview--image { justify-content: flex-end; } }
+@media (max-width: 760px) { .work .project-preview--image { min-height: clamp(245px, 76vw, 420px); } }
+.work .circle-arrow svg { width: 38%; height: 38%; }

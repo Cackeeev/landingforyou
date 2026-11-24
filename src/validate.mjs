@@ -1,4 +1,4 @@
-import { normalizeContent, defaultSettings } from './content.mjs';
+import { normalizeContent, defaultSettings, projectThemes } from './content.mjs';
 
 function text(value) {
   if (typeof value !== 'string') throw new Error('Проверьте текстовые поля.');
@@ -71,6 +71,14 @@ export function validateContent(body) {
     record.image = image(row.image);
     record.url = link(row.url);
     record.gallery = gallery(row.gallery);
+    record.cardTheme = text(row.cardTheme);
+    if (!Object.hasOwn(projectThemes, record.cardTheme)) throw new Error('Выберите оформление плитки.');
+    for (const key of ['cardColor', 'cardText']) {
+      record[key] = text(row[key]);
+      if (!/^#[a-fA-F0-9]{6}$/.test(record[key])) throw new Error('Укажите цвет плитки в формате #123ABC.');
+    }
+    record.backgroundImage = image(row.backgroundImage, true);
+    if (record.cardTheme === 'image' && record.status === 'published' && !record.backgroundImage) throw new Error('Добавьте фоновое изображение для плитки.');
     return record;
   });
   const services = records(content.services).map(row => {

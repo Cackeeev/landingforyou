@@ -5,7 +5,9 @@ import { renderSite, escape } from '../src/render.mjs';
 import { root, db } from '../src/store.mjs';
 import { normalizeContent, themeCss } from '../src/content.mjs';
 
-const content = normalizeContent(JSON.parse(readFileSync(resolve(root, 'src/seed.json'), 'utf8')));
+const source = readFileSync(resolve(root, 'src/seed.json'));
+const seedSha = createHash('sha1').update('blob ' + source.length + '\0').update(source).digest('hex');
+const content = normalizeContent(JSON.parse(source.toString('utf8')));
 const base = process.env.PAGES_BASE_PATH || '/landingforyou/';
 if (!/^\/[a-zA-Z0-9_/-]*\/$/.test(base) && base !== '/') throw new Error('PAGES_BASE_PATH must start and end with /.');
 let adminUrl = '';
@@ -27,7 +29,8 @@ let html = renderSite(content);
 html = html.replace(/<p class="contact-divider">.*?<\/form>/s, '');
 html = html.replace(/(href|src)="\/(?!\/)/g, (_, attribute) => attribute + '="' + base);
 writeFileSync(resolve(output, 'index.html'), html);
-writeFileSync(resolve(output, 'theme.css'), themeCss(content.settings));
+writeFileSync(resolve(output, 'theme.css'), themeCss(content.settings, content.projects));
+writeFileSync(resolve(output, 'admin-deployment.json'), JSON.stringify({ commitSha: process.env.GITHUB_SHA || '', seedSha, builtAt: new Date().toISOString() }));
 mkdirSync(resolve(output, 'admin'), { recursive: true });
 const adminEntry = readFileSync(resolve(root, 'templates/admin-entry.html'), 'utf8')
   .replaceAll('{{BASE}}', base)
@@ -48,21 +51,19 @@ if (adminUrl) {
   } else {
     authentication = JSON.parse(readFileSync(resolve(root, 'src/pages-auth.json'), 'utf8'));
   }
-  const source = readFileSync(resolve(root, 'src/seed.json'));
-  const seedSha = createHash('sha1').update('blob ' + source.length + '\0').update(source).digest('hex');
   const names = { 'wordmark.webp': 'Логотип Landingforyou', 'baltic-logo.png': 'Биосфера Балтики' };
   const assets = readdirSync(resolve(root, 'public/assets')).filter(name => /^[a-zA-Z0-9._-]+\.(png|jpe?g|webp)$/.test(name) && !/^(favicon|apple-touch-icon)/.test(name))
     .map(name => ({ name: names[name] || name, url: '/assets/' + name }));
   writeFileSync(resolve(output, 'admin/bootstrap.json'), JSON.stringify({ ...authentication, content, seedSha, repository: process.env.GITHUB_REPOSITORY || 'Cackeeev/landingforyou', branch: 'main', assets }));
   mkdirSync(resolve(output, 'admin/shared'), { recursive: true });
-  for (const file of ['content.mjs', 'validate.mjs', 'public-render.mjs']) cpSync(resolve(root, 'src', file), resolve(output, 'admin/shared', file));
+  for (const file of ['content.mjs', 'validate.mjs', 'public-render.mjs', 'publication.mjs']) cpSync(resolve(root, 'src', file), resolve(output, 'admin/shared', file));
   for (const file of ['admin-pages.mjs', 'admin-crypto.mjs', 'admin-zip.mjs']) cpSync(resolve(root, 'public', file), resolve(output, 'admin', file));
   cpSync(resolve(root, 'public/admin.js'), resolve(output, 'admin.js'));
   cpSync(resolve(root, 'templates/site.html'), resolve(output, 'admin/site-template.html'));
   const prepare = html => html.replace('<script defer src="/admin.js"></script>', '<script type="module" src="/admin/admin-pages.mjs"></script>').replace(/(href|src)="\/(?!\/)/g, (_, attribute) => attribute + '=\"' + base);
   const login = readFileSync(resolve(root, 'templates/login.html'), 'utf8').replace('<form id="login-form"', '<p class="notice">Редактор GitHub Pages. Черновики сохраняются на этом устройстве.</p><form method="post" id="login-form"');
   let editor = readFileSync(resolve(root, 'templates/admin.html'), 'utf8');
-  editor = editor.replace('<div class="admin-layout">', `<section class="pages-notice"><p>Черновики сохраняются в этом браузере. Для обновления сайта отправьте изменения в GitHub или скачайте архив.</p><div class="header-actions"><button id="pages-publish" class="primary">Опубликовать в GitHub</button><button id="pages-download">Скачать обновление</button></div><p id="pages-status" role="status"></p></section><div class="admin-layout">`);
+  editor = editor.replace('<div class="admin-layout">', `<section class="pages-notice"><p>Черновики сохраняются в этом браузере. Для обновления сайта отправьте изменения в GitHub или скачайте архив.</p><div class="header-actions"><button id="pages-publish" class="primary">Опубликовать в GitHub</button><button id="pages-download">Скачать обновление</button><button id="pages-check" hidden>Проверить публикацию</button></div><p id="pages-status" role="status"></p></section><div class="admin-layout">`);
   editor = editor.replace('</body>', `<dialog class="github-dialog" id="github-dialog"><form method="dialog"><button aria-label="Закрыть публикацию">Закрыть ×</button></form><h2>Публикация в GitHub</h2><p>Укажите токен для репозитория landingforyou с правом Contents: Read and write. Токен используется только для этой публикации и не сохраняется.</p><p><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Создать токен GitHub ↗</a></p><form class="fields" id="github-form"><label>Токен GitHub<input name="token" type="password" autocomplete="off" required></label><button type="submit" class="primary">Отправить обновление</button><p id="github-status" role="status"></p></form></dialog></body>`);
   writeFileSync(resolve(output, 'admin/index.html'), prepare(login.replace('<button class="primary">', '<button class="primary" disabled>')));
   writeFileSync(resolve(output, 'admin/editor.html'), prepare(editor));

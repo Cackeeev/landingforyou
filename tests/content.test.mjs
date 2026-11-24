@@ -5,7 +5,7 @@ import { normalizeContent, imagePaths, themeCss } from '../src/content.mjs';
 import { validateContent, link } from '../src/validate.mjs';
 import { renderSite } from '../src/render.mjs';
 
-const seed = JSON.parse(readFileSync(new URL('../src/seed.json', import.meta.url), 'utf8'));
+const seed = JSON.parse(readFileSync(new URL('./fixtures/content.json', import.meta.url), 'utf8'));
 const fresh = () => normalizeContent(structuredClone(seed));
 const block = (id, type = 'text') => ({ id, type, status: 'published', title: id, description: '', body: 'Текст блока', image: '', images: [], url: '', linkLabel: '' });
 
@@ -71,8 +71,24 @@ test('logo, block and project gallery images are all tracked for media protectio
   const content = fresh();
   content.settings.logo = '/media/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
   content.projects[0].gallery.push({ image: '/media/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', alt: '' });
+  content.projects[0].backgroundImage = '/media/eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
   content.sections.push({ ...block('image-block', 'image'), image: '/media/cccccccc-cccc-cccc-cccc-cccccccccccc' });
   content.sections.push({ ...block('gallery-block', 'gallery'), images: [{ image: '/media/dddddddd-dddd-dddd-dddd-dddddddddddd', alt: '' }] });
   const paths = imagePaths(validateContent(content));
-  for (const prefix of ['a', 'b', 'c', 'd']) assert.ok(paths.some(path => path.startsWith('/media/' + prefix)));
+  for (const prefix of ['a', 'b', 'c', 'd', 'e']) assert.ok(paths.some(path => path.startsWith('/media/' + prefix)));
+});
+
+test('project themes and background photos render, validate and remain independent per card', () => {
+  const content = fresh();
+  content.projects[0].cardTheme = 'dark';
+  content.projects.push({ ...structuredClone(content.projects[0]), id: 'photo-project', title: 'Фото', cardTheme: 'image', backgroundImage: '/assets/baltic-logo.png', cardText: '#ffffff' });
+  const valid = validateContent(content);
+  const html = renderSite(valid);
+  assert.match(html, /project-preview--dark" data-project="baltic"/);
+  assert.match(html, /class="project-background"/);
+  assert.match(themeCss(valid.settings, valid.projects), /data-project="photo-project".*--project-text: #ffffff/);
+  valid.projects[1].cardText = 'red;display:none';
+  assert.throws(() => validateContent(valid));
+  valid.projects[1].cardText = '#ffffff'; valid.projects[1].backgroundImage = '';
+  assert.throws(() => validateContent(valid));
 });
