@@ -41,17 +41,39 @@ async function initializeAdmin() {
   let editVersion = 0;
   let savedContent;
   let recordControls = [];
+  let recordFeedback, publicationFeedback;
   addEventListener('beforeunload', event => { if (dirty || uploads) { event.preventDefault(); event.returnValue = ''; } });
 
   function message(text, error = false) { notice.textContent = text; notice.classList.toggle('error', error); }
-  function syncButtons() {
-    document.getElementById('save').disabled = busy || uploads > 0 || !dirty;
+  function syncButtons(notify = true) {
+    const publication = window.pagesAdmin?.getPublicationState?.();
+    const saveButton = document.getElementById('save');
+    saveButton.disabled = busy || uploads > 0 || !dirty;
+    saveButton.textContent = busy ? 'Сохраняем…' : 'Сохранить изменения';
+    saveButton.setAttribute('aria-busy', String(busy));
     for (const control of recordControls) {
       const previous = savedContent?.[control.collection]?.find(row => row.id === control.record.id);
       const unchanged = previous && JSON.stringify(previous) === JSON.stringify(control.record);
-      control.node.disabled = busy || uploads > 0 || (control.record.status === control.state && unchanged);
+      const publish = publication && control.state === 'published';
+      const saved = control.record.status === control.state && unchanged;
+      control.node.disabled = busy || uploads > 0 || publication?.sending || (saved && !(publish && publication.needsPublish));
+      control.node.setAttribute('aria-busy', String(busy || Boolean(publish && publication.sending)));
+      let label = control.label;
+      if (publish) {
+        label = 'Опубликовать на сайте';
+        if (saved && !publication.needsPublish) label = publication.pending ? 'Отправлено в GitHub' : 'Опубликовано';
+        if (publication.sending) label = 'Отправляем…';
+        if (busy) label = 'Сохраняем…';
+      }
+      control.node.textContent = label;
     }
-    if (content && window.pagesAdmin?.onEditorChange) window.pagesAdmin.onEditorChange(content, { dirty, busy, uploads });
+    if (recordFeedback) { recordFeedback.textContent = busy ? 'Сохраняем изменения…' : notice.textContent; recordFeedback.classList.toggle('error', notice.classList.contains('error')); }
+    if (publicationFeedback) {
+      const status = document.getElementById('pages-status');
+      publicationFeedback.replaceChildren(...[...status.childNodes].map(node => node.cloneNode(true)));
+      publicationFeedback.classList.toggle('error', status.classList.contains('error'));
+    }
+    if (notify && content && window.pagesAdmin?.onEditorChange) window.pagesAdmin.onEditorChange(content, { dirty, busy, uploads });
   }
   function changed() { dirty = true; editVersion++; message('Есть несохранённые изменения.'); syncButtons(); }
   function uploading(delta) { uploads += delta; syncButtons(); }
@@ -94,20 +116,21 @@ async function initializeAdmin() {
     panel.append(element('h2', {}, title)); area.append(panel); return panel;
   }
   async function save() {
-    if (busy) return;
-    if (uploads) { message('Дождитесь завершения загрузки изображений.', true); return; }
+    if (busy) return false;
+    if (uploads) { message('Дождитесь завершения загрузки изображений.', true); return false; }
     busy = true; syncButtons();
     const savingVersion = editVersion;
     try {
       const saved = await api('/api/admin/content', { method: 'PUT', body: JSON.stringify(content) });
       savedContent = structuredClone(saved);
       if (editVersion === savingVersion) {
-        content = saved; dirty = false; message(window.pagesAdmin ? 'Изменения сохранены в этом браузере. Для обновления сайта нажмите «Опубликовать в GitHub».' : 'Изменения сохранены. Опубликованный контент обновлён на сайте.'); render();
+        content = saved; dirty = false; message(window.pagesAdmin ? 'Изменения сохранены в этом браузере. Для обновления сайта подтвердите публикацию с токеном GitHub.' : 'Изменения сохранены. Опубликованный контент обновлён на сайте.'); render();
       } else {
         content.revision = saved.revision; content.csrf = saved.csrf;
         message('Сохранено. Есть новые несохранённые изменения.');
       }
-    } catch (error) { message(error.message, true); }
+      return true;
+    } catch (error) { message(error.message, true); return false; }
     finally { busy = false; syncButtons(); }
   }
   async function uploadFile(file) {
@@ -260,10 +283,17 @@ async function initializeAdmin() {
       }
       const actions = element('div', { class: 'header-actions fields' });
       for (const [state, label] of [['draft', 'Сохранить черновик'], ['published', 'Опубликовать'], ['hidden', 'Скрыть']]) {
-        const node = button(label, () => { record.status = state; changed(); save(); }, state === 'published' ? 'primary' : '');
-        recordControls.push({ node, record, collection: tab, state }); actions.append(node);
+        const node = button(label, async () => {
+          record.status = state; changed();
+          if (await save() && state === 'published' && window.pagesAdmin) await window.pagesAdmin.requestPublication();
+        }, state === 'published' ? 'primary' : '');
+        recordControls.push({ node, record, collection: tab, state, label }); actions.append(node);
       }
-      if (window.pagesAdmin) actions.append(element('p', { class: 'hint' }, 'Эта кнопка сохраняет материал для публикации. Чтобы обновить сайт, нажмите «Опубликовать в GitHub» вверху.'));
+      recordFeedback = element('p', { class: 'hint', role: 'status', 'data-record-status': '' }); actions.append(recordFeedback);
+      if (window.pagesAdmin) {
+        actions.append(element('p', { class: 'hint' }, '«Опубликовать на сайте» сохраняет материал и открывает подтверждение с токеном GitHub. Публикация включает все подготовленные изменения сайта.'));
+        publicationFeedback = element('p', { class: 'hint', role: 'status', 'data-publication-status': '' }); actions.append(publicationFeedback);
+      }
       actions.append(button('Удалить', () => {
         if (!confirm('Удалить «' + (record.title || record.label) + '»? Изменение применится после сохранения.')) return;
         records.splice(selected, 1); selected = Math.min(selected, records.length - 1); changed(); render();
@@ -337,7 +367,7 @@ async function initializeAdmin() {
   }
   function switchTab(next) { tab = next; selected = 0; render(); }
   function render() {
-    recordControls = []; area.replaceChildren(); document.getElementById('section-title').textContent = labels[tab];
+    recordControls = []; recordFeedback = publicationFeedback = null; area.replaceChildren(); document.getElementById('section-title').textContent = labels[tab];
     document.querySelectorAll('[data-tab]').forEach(button => {
       if (button.dataset.tab === tab) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
     });
@@ -363,10 +393,13 @@ async function initializeAdmin() {
       const dialog = document.getElementById('preview-dialog'); dialog.querySelector('iframe').srcdoc = data.html; dialog.showModal();
     } catch (error) { message(error.message, true); }
   });
-  if (window.pagesAdmin) window.pagesAdmin.saveBeforeExport = async () => {
-    if (dirty) await save();
-    if (busy || dirty || uploads) throw new Error('Сначала завершите сохранение изменений.');
-  };
+  if (window.pagesAdmin) {
+    window.pagesAdmin.onPublicationChange = () => syncButtons(false);
+    window.pagesAdmin.saveBeforeExport = async () => {
+      if (dirty) await save();
+      if (busy || dirty || uploads) throw new Error('Сначала завершите сохранение изменений.');
+    };
+  }
   try { content = await api('/api/admin/content'); savedContent = structuredClone(content); message('Контент загружен.'); render(); }
   catch (error) { message(error.message, true); }
 }

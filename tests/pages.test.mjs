@@ -33,6 +33,7 @@ test('Pages retains the footer admin entry and redirects only to a configured HT
       assert.doesNotMatch(admin, /http-equiv="refresh"|{{|test-pages-password/);
       assert.ok(existsSync(resolve(directory, 'dist/admin.css')));
       assert.ok(existsSync(resolve(directory, 'dist/admin.js')));
+      assert.ok(existsSync(resolve(directory, 'dist/admin/admin-request.mjs')));
       assert.ok(existsSync(resolve(directory, 'dist/admin/editor.html')));
       assert.match(readFileSync(resolve(directory, 'dist/admin/editor.html'), 'utf8'), /Опубликовать в GitHub/);
       const bootstrap = JSON.parse(readFileSync(resolve(directory, 'dist/admin/bootstrap.json'), 'utf8'));
