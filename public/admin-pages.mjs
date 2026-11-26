@@ -2,8 +2,9 @@ import { normalizeContent, imagePaths, themeCss } from './shared/content.mjs';
 import { validateContent } from './shared/validate.mjs';
 import { publishedContent, canonical } from './shared/publication.mjs';
 import { renderContent } from './shared/public-render.mjs';
-import { encode, decode, passwordKey, importKey, exportKey, encrypt, decrypt } from './admin-crypto.mjs';
+import { encode, decode, passwordKey, importKey, exportKey, encrypt, decrypt, gitBlobSha } from './admin-crypto.mjs';
 import { zip } from './admin-zip.mjs';
+import { requestJson } from './admin-request.mjs';
 
 const base = new URL('../', import.meta.url);
 const loginUrl = new URL('./', import.meta.url).href;
@@ -16,6 +17,7 @@ let manifest, seed, stateKey, stateSalt, database, template;
 let queue = Promise.resolve();
 const mediaUrls = new Map();
 let currentState, editorContent, editorBusy = false, publishing = false, monitoring = '';
+let publicationProgress = '';
 
 function record() {
   return new Promise((resolve, reject) => {
@@ -175,11 +177,14 @@ function refreshPublicationUi() {
   const changed = needsPublication();
   const failed = pending?.status === 'failed';
   button.disabled = publishing || editorBusy || (!changed && !failed);
+  button.setAttribute('aria-busy', String(publishing));
+  document.getElementById('github-cancel').disabled = !publishing;
   button.textContent = publishing ? 'Отправляем изменения…' : failed ? 'Повторить публикацию' : 'Опубликовать в GitHub';
   status.classList.toggle('error', failed);
   let text = changed ? 'Есть изменения для публикации на сайте.' : 'На сайте опубликована эта версия. Новых изменений нет.';
   if (pending) text = failed ? 'Не опубликовано: сборка или размещение Pages завершились ошибкой. Черновик сохранён.' : pending.status === 'unknown' ? 'GitHub принял изменения, но размещение сайта пока не подтверждено. Проверьте статус публикации.' : 'GitHub принял изменения. Ждём успешной сборки и размещения сайта…';
   else if (currentState.lastDeployment?.status === 'success') text = changed ? 'Предыдущая версия опубликована. Есть новые изменения для публикации.' : 'Опубликовано на сайте. Новых изменений нет.';
+  if (publishing) text = publicationProgress || 'Подготавливаем публикацию…';
   status.replaceChildren(document.createTextNode(text));
   if (pending?.runUrl) {
     const link = document.createElement('a'); link.href = pending.runUrl; link.textContent = ' Открыть сборку'; link.target = '_blank'; link.rel = 'noopener'; status.append(link);
@@ -187,6 +192,7 @@ function refreshPublicationUi() {
   const check = document.getElementById('pages-check');
   if (check) check.hidden = !pending;
   if (pending && !['failed', 'unknown'].includes(pending.status)) watchDeployment(pending);
+  window.pagesAdmin?.onPublicationChange?.();
 }
 function watchDeployment(pending) {
   if (monitoring === pending.commitSha) return;
@@ -203,46 +209,55 @@ async function monitorDeployment(pending) {
       else value.pendingDeployment = { ...value.pendingDeployment, status, runUrl: runUrl || value.pendingDeployment.runUrl };
     });
   };
-  for (let attempt = 0; attempt < 45 && stillCurrent(); attempt++) {
+  const deadline = Date.now() + 180000;
+  const remaining = () => Math.max(1, Math.min(8000, deadline - Date.now()));
+  while (Date.now() < deadline && stillCurrent()) {
     try {
       const url = new URL('admin-deployment.json', base); url.searchParams.set('check', Date.now());
-      const result = await fetch(url, { cache: 'no-store' });
+      const result = await requestJson(url, { cache: 'no-store' }, { timeoutMs: remaining(), service: 'Сайт' });
       if (result.ok) {
-        const deployed = await result.json();
+        const deployed = result.data;
         if (deployed.seedSha === pending.seedSha) { await finish('success'); return; }
       }
     } catch {}
-    if (!stillCurrent()) return;
+    if (!stillCurrent() || Date.now() >= deadline) break;
     try {
-      const result = await fetch('https://api.github.com/repos/' + manifest.repository + '/actions/workflows/pages.yml/runs?head_sha=' + encodeURIComponent(commitSha) + '&per_page=1', { headers: { Accept: 'application/vnd.github+json' } });
+      const result = await requestJson('https://api.github.com/repos/' + manifest.repository + '/actions/workflows/pages.yml/runs?head_sha=' + encodeURIComponent(commitSha) + '&per_page=1', { headers: { Accept: 'application/vnd.github+json' } }, { timeoutMs: remaining() });
       if (result.ok) {
-        const run = (await result.json()).workflow_runs?.[0];
+        const run = result.data.workflow_runs?.[0];
         if (run && run.status === 'completed' && run.conclusion !== 'success') { await finish('failed', run.html_url); return; }
       }
     } catch {}
-    await new Promise(resolve => setTimeout(resolve, 4000));
+    await new Promise(resolve => setTimeout(resolve, Math.max(0, Math.min(4000, deadline - Date.now()))));
   }
   if (stillCurrent()) await finish('unknown');
 }
-async function publish(files, token, baseline) {
+async function publish(files, token, baseline, signal, progress) {
   const root = 'https://api.github.com/repos/' + manifest.repository;
   async function github(path, method = 'GET', body) {
-    const result = await fetch(root + path, { method, headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' }, ...(body ? { body: JSON.stringify(body) } : {}) });
-    const data = await result.json();
+    const result = await requestJson(root + path, { method, signal, headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' }, ...(body ? { body: JSON.stringify(body) } : {}) }, { timeoutMs: path === '/git/blobs' ? 90000 : 30000 });
+    const data = result.data;
     if (!result.ok) throw new Error(result.status === 401 ? 'Проверьте токен GitHub.' : result.status === 403 ? 'Токену нужен доступ Contents: Read and write к этому репозиторию.' : 'GitHub не принял изменение. Возможно, репозиторий обновился; черновик сохранён.');
     return data;
   }
+  progress('Проверяем соединение и версию сайта в GitHub…');
   const ref = await github('/git/ref/heads/' + manifest.branch);
   const current = await github('/contents/src/seed.json?ref=' + ref.object.sha);
+  const seedSha = await gitBlobSha(files.find(file => file.path === 'src/seed.json').data);
+  // A lost PATCH response must not turn a successful publication into a conflict.
+  if (current.sha !== baseline && current.sha === seedSha) return { seedSha, commitSha: ref.object.sha };
   if (current.sha !== baseline) throw new Error('Контент в GitHub уже изменился. Скачайте свой черновик архивом перед обновлением редактора.');
   const commit = await github('/git/commits/' + ref.object.sha);
   const tree = [];
-  for (const file of files) {
+  for (const [index, file] of files.entries()) {
+    progress('Загружаем файлы в GitHub: ' + (index + 1) + ' из ' + files.length + '…');
     const blob = await github('/git/blobs', 'POST', { encoding: 'base64', content: encode(file.data) });
     tree.push({ path: file.path, mode: '100644', type: 'blob', sha: blob.sha });
   }
+  progress('Сохраняем новую версию сайта в GitHub…');
   const nextTree = await github('/git/trees', 'POST', { base_tree: commit.tree.sha, tree });
   const next = await github('/git/commits', 'POST', { message: 'Update website content from Pages editor', tree: nextTree.sha, parents: [ref.object.sha] });
+  progress('Отправляем версию на публикацию…');
   await github('/git/refs/heads/' + manifest.branch, 'PATCH', { sha: next.sha, force: false });
   return { seedSha: tree.find(item => item.path === 'src/seed.json').sha, commitSha: next.sha };
 }
@@ -253,6 +268,9 @@ function bindActions() {
   const dialog = document.getElementById('github-dialog');
   const form = document.getElementById('github-form');
   const error = document.getElementById('github-status');
+  let submission;
+  document.getElementById('github-cancel').addEventListener('click', () => submission?.abort());
+  dialog.addEventListener('close', () => submission?.abort());
   async function savedFiles() {
     if (!window.pagesAdmin.saveBeforeExport) throw new Error('Подождите загрузки редактора.');
     await window.pagesAdmin.saveBeforeExport();
@@ -267,19 +285,28 @@ function bindActions() {
       status.textContent = 'В архиве — src/seed.json и новые изображения. Загрузите их в репозиторий для публикации.';
     } catch (error) { status.textContent = error.message; }
   });
-  publishButton.addEventListener('click', () => { if (publishButton.disabled) return; error.textContent = ''; dialog.showModal(); });
+  window.pagesAdmin.requestPublication = async () => {
+    if (publishing) return;
+    try {
+      await window.pagesAdmin.saveBeforeExport();
+      refreshPublicationUi();
+      if (publishButton.disabled) return;
+      error.textContent = ''; dialog.showModal();
+    } catch (failure) { status.textContent = failure.message; window.pagesAdmin.onPublicationChange?.(); }
+  };
+  publishButton.addEventListener('click', () => { if (!publishButton.disabled) void window.pagesAdmin.requestPublication(); });
   document.getElementById('pages-check')?.addEventListener('click', () => { if (currentState?.pendingDeployment) watchDeployment(currentState.pendingDeployment); });
   form.addEventListener('submit', async event => {
-    event.preventDefault(); if (publishing) return; const submit = form.querySelector('button[type=submit]'); submit.disabled = true; publishing = true; refreshPublicationUi();
+    event.preventDefault(); if (publishing) return; const submit = form.querySelector('button[type=submit]'); submit.disabled = true; publishing = true; submission = new AbortController(); publicationProgress = 'Сохраняем и подготавливаем изменения…'; refreshPublicationUi();
     try {
       error.textContent = 'Отправляем обновление…';
       const { value, content, files } = await savedFiles();
       if (!needsPublication() && value.pendingDeployment?.status !== 'failed') { dialog.close(); return; }
-      const result = await publish(files, form.elements.token.value.trim(), value.baselineSeedSha);
+      const result = await publish(files, form.elements.token.value.trim(), value.baselineSeedSha, submission.signal, text => { publicationProgress = text; error.textContent = text; refreshPublicationUi(); });
       await mutate(current => { current.baselineSeedSha = result.seedSha; current.lastSubmittedContent = content; current.pendingDeployment = { ...result, status: 'building', submittedAt: Date.now() }; });
       dialog.close();
     } catch (failure) { error.textContent = failure.message; }
-    finally { form.elements.token.value = ''; submit.disabled = false; publishing = false; refreshPublicationUi(); }
+    finally { form.elements.token.value = ''; submit.disabled = false; publishing = false; submission = null; publicationProgress = ''; refreshPublicationUi(); }
   });
 }
 
@@ -306,9 +333,9 @@ try {
   else {
     if (editorPage) {
       template = await (await fetch(new URL('site-template.html', import.meta.url))).text();
-      bindActions();
     }
-    window.pagesAdmin = { onEditorChange: (content, flags) => { editorContent = content; editorBusy = flags.busy || flags.uploads > 0; refreshPublicationUi(); }, fetch: api, loginUrl, editorUrl, imageUrl: path => path.startsWith('/media/') ? mediaUrls.get(path.slice(7)) || '' : path.startsWith('/assets/') ? base.pathname + path.slice(1) : path };
+    window.pagesAdmin = { getPublicationState: () => ({ sending: publishing, needsPublish: needsPublication() || currentState?.pendingDeployment?.status === 'failed', pending: currentState?.pendingDeployment?.status }), onEditorChange: (content, flags) => { editorContent = content; editorBusy = flags.busy || flags.uploads > 0; refreshPublicationUi(); }, fetch: api, loginUrl, editorUrl, imageUrl: path => path.startsWith('/media/') ? mediaUrls.get(path.slice(7)) || '' : path.startsWith('/assets/') ? base.pathname + path.slice(1) : path };
+    if (editorPage) bindActions();
     const script = document.createElement('script'); script.src = new URL('../admin.js', import.meta.url); script.onload = () => { const button = document.querySelector('#login-form button'); if (button) button.disabled = false; }; document.head.append(script);
   }
 } catch (error) {
